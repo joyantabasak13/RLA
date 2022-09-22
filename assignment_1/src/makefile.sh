@@ -1,3 +1,3 @@
-g++ -I /opt/homebrew/Cellar/boost/1.79.0_2/include -o data_processing data_processing.cpp 
+g++ -I /opt/homebrew/Cellar/boost/1.79.0_2/include -o random_sampling_RLA random_sampling_RLA.cpp
 
-./data_processing
+./random_sampling_RLA
