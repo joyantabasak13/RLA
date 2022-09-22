@@ -13,7 +13,7 @@ using namespace std::chrono;
 
 int threshold = 99;
 
-
+// helps edit distance calculation in calculateBasicED()
 int calculateBasicED2(string& str1, string& str2, int threshRem)
 {
 	int row, col, i, j;
@@ -52,6 +52,11 @@ int calculateBasicED2(string& str1, string& str2, int threshRem)
 	return (matArr[row-1][col-1]);
 }
 
+// calculates edit distance between two string
+// takes two strings and a threshold value as input
+// returns global variable threshold + 1 if distance exceeds theshold param
+// returns edit distance
+// core mechanism is a DP algo 
 int calculateBasicED(string& str1, string& str2, int threshRem)
 {
 	int dist	= threshRem;
@@ -182,7 +187,54 @@ int calculateBasicED(string& str1, string& str2, int threshRem)
 	}
 }
 
+// NOT USED ANYMORE
+// reads data from two tab deliminated datasets and merges them
+// returns a vector of string vector which contains ssn & name in lowercase without whitespace 
 vector<vector<string> > getData(string file_path_1, string file_path_2) {
+    string line;
+    vector<vector<string> > vec2D;
+
+    // Read from the text file
+    ifstream records_1(file_path_1);
+    ifstream records_2(file_path_2);
+
+    int ind = 0;
+
+    while (getline (records_1, line)) {
+        vector<string> result;
+        boost::split(result, line, boost::is_any_of("\t"));
+        vector<string> vec;
+        string name = result[1] + result[2];
+        boost::to_lower(name);
+        vec.push_back(result[0]);
+        vec.push_back(name);
+        vec.push_back(to_string(ind));
+        vec.push_back(to_string(0));
+        vec2D.push_back(vec);
+        ind++;
+    }
+
+    while (getline (records_2, line)) {
+        vector<string> result;
+        boost::split(result, line, boost::is_any_of("\t"));
+        vector<string> vec;
+        string name = result[1] + result[2];
+        boost::to_lower(name);
+        vec.push_back(result[0]);
+        vec.push_back(name);
+        vec.push_back(to_string(ind));
+        vec.push_back(to_string(0));
+        vec2D.push_back(vec);
+        ind++;
+    }
+    records_1.close();
+    records_2.close();
+    return vec2D;
+}
+
+// reads data from one comma deliminated dataset (.CSV) file
+// returns a vector of string vector which contains ssn & name 
+vector<vector<string> > getFormattedDataFromCSV(string file_path) {
     string line;
     vector<vector<string> > vec2D;
 

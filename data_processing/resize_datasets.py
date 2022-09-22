@@ -44,4 +44,4 @@ for x in datasizes:
     df_x = df.loc[df['SSN'].isin(ssn_list_x)]
     file_name = "ds" + str(x)
     print(len(df_x))
-    df_x.to_csv(file_name)
+    df_x.to_csv(file_name, index = False, header = False)
