@@ -216,7 +216,7 @@ vector<vector<string> > getData(string file_path_1, string file_path_2) {
 
     while (getline (records_2, line)) {
         vector<string> result;
-        boost::split(result, line, boost::is_any_of("\t"));
+        boost::split(result, line, boost::is_any_of(","));
         vector<string> vec;
         string name = result[1] + result[2];
         boost::to_lower(name);
@@ -234,48 +234,28 @@ vector<vector<string> > getData(string file_path_1, string file_path_2) {
 
 // reads data from one comma deliminated dataset (.CSV) file
 // returns a vector of string vector which contains ssn & name 
-vector<vector<string> > getFormattedDataFromCSV(string file_path) {
+vector<vector<string> > getFormattedDataFromCSV(string& file_path) {
     string line;
     vector<vector<string> > vec2D;
-
-    // Read from the text file
-    ifstream records_1(file_path_1);
-    ifstream records_2(file_path_2);
+    ifstream records(file_path);
 
     int ind = 0;
-
-    while (getline (records_1, line)) {
+    while (getline (records, line)) {
         vector<string> result;
-        boost::split(result, line, boost::is_any_of("\t"));
+        boost::split(result, line, boost::is_any_of(","));
         vector<string> vec;
-        string name = result[1] + result[2];
-        boost::to_lower(name);
         vec.push_back(result[0]);
-        vec.push_back(name);
+        vec.push_back(result[1]);
         vec.push_back(to_string(ind));
         vec.push_back(to_string(0));
         vec2D.push_back(vec);
         ind++;
     }
-
-    while (getline (records_2, line)) {
-        vector<string> result;
-        boost::split(result, line, boost::is_any_of("\t"));
-        vector<string> vec;
-        string name = result[1] + result[2];
-        boost::to_lower(name);
-        vec.push_back(result[0]);
-        vec.push_back(name);
-        vec.push_back(to_string(ind));
-        vec.push_back(to_string(0));
-        vec2D.push_back(vec);
-        ind++;
-    }
-    records_1.close();
-    records_2.close();
+    records.close();
     return vec2D;
 }
 
+// for graph datastucture
 struct Edge {
     int src, dest;
     Edge(int my_src, int my_dest) {
@@ -293,6 +273,7 @@ public:
     Graph(vector<Edge> const &edges, int n)
     {
         adjList.resize(n);
+		//undirected
         for (auto &edge: edges)
         {
             adjList[edge.src].push_back(edge.dest);
@@ -349,10 +330,8 @@ public:
 				    }
 				cout << endl;
 				}
-    
-    }
-}
-
+    	}
+	}
 };
  
 void printGraph(Graph const &graph, int n)
@@ -370,6 +349,7 @@ void printGraph(Graph const &graph, int n)
     }
 }
 
+// needs to look into here ASAP
 int calculateAccuracy(vector<vector<int> > &connected_component_list, vector<vector<string> > &vec2D) {
 	int correct_component = 0;
 	for(int i = 0; i< connected_component_list.size(); i++) {
@@ -386,56 +366,91 @@ int calculateAccuracy(vector<vector<int> > &connected_component_list, vector<vec
 	}
 	return correct_component;
 }
- 
-int main()
+
+void writeConnectedComponentToFile(vector<vector<int> > &connected_component_list, vector<vector<string> > &vec2D, string& result_file_name) {
+	ofstream out_file;
+    out_file.open(result_file_name);
+	for(int i = 0; i< connected_component_list.size(); i++) {
+		for(int j = 0; j< connected_component_list[i].size(); j++) {
+			out_file << vec2D[connected_component_list[i][j]][0];
+			if (j == connected_component_list[i].size()-1)
+			{
+				out_file << "\n";
+			} else {
+				out_file << ",";
+			}
+			
+		}
+	}
+	out_file.close();
+}
+
+int main(int argc, char** argv)
 {
+	string file_name = argv[1];
     // Read Data
-    string file_path_1 = "/Users/joyanta/Documents/Research/Record\ Linkage/codes/my\ codes/19500671/ds1.1.1";
-    string file_path_2 = "/Users/joyanta/Documents/Research/Record\ Linkage/codes/my\ codes/19500671/ds1.1.2";
-    vector<vector<string> > vec2D = getData(file_path_1, file_path_2);
+    //string file_path_1 = "/Users/joyanta/Documents/Research/Record\ Linkage/codes/my\ codes/19500671/ds1.1.1";
+    //string file_path_2 = "/Users/joyanta/Documents/Research/Record\ Linkage/codes/my\ codes/19500671/ds1.1.2";
+    string file_path = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/data/"+file_name;
+	ofstream stat_file;
+	vector<vector<string> > vec2D = getFormattedDataFromCSV(file_path);
 
     cout<< "Vector Size: "<< vec2D.size()<<endl;
 
     // set seed
     srand(1);
-
+	for(int k = 5; k>0; k--) {
     // Algorithm
-	auto start = high_resolution_clock::now();
-    long long int param_k = 1;
-    long long int tot_record = vec2D.size();
-    long long int tot_pair = floor((tot_record*(tot_record - 1)) / param_k);
-    cout<< tot_record*(tot_record - 1) << " " << (tot_record*(tot_record - 1)) / param_k << endl;
-    vector<Edge> edges;
+		auto start = high_resolution_clock::now();
+		long long int param_k = k;
+		long long int tot_record = vec2D.size();
+		long long int tot_pair = floor((tot_record*(tot_record - 1)) / param_k);
+		cout<< tot_record*(tot_record - 1) << " " << (tot_record*(tot_record - 1)) / param_k << endl;
+		vector<Edge> edges;
 
-    for( int i = 0; i<tot_pair; i++) {
-        int ind1 = rand() % tot_record ;
-        int ind2 = rand() % tot_record;
-        while(ind1 == ind2) {
-            ind2 = rand() % tot_record;
-        }
-        int edit_distance = calculateBasicED(vec2D[ind1][1], vec2D[ind2][1], 1);
-        if (edit_distance <= 1) {
-            Edge edge(ind1, ind2);
-            edges.push_back(edge);
-        }
-    }
-	cout<<" Number of Edges: "<< edges.size() << endl;
-    Graph graph(edges, tot_record);
-    //printGraph(graph, tot_record);
+		for( int i = 0; i<tot_pair; i++) {
+			int ind1 = rand() % tot_record;
+			int ind2 = rand() % tot_record;
+			while(ind1 == ind2) {
+				ind2 = rand() % tot_record;
+			}
+			int edit_distance = calculateBasicED(vec2D[ind1][1], vec2D[ind2][1], 1);
+			if (edit_distance <= 1) {
+				Edge edge(ind1, ind2);
+				edges.push_back(edge);
+			}
+			if (i%100000 == 0)
+			{
+				cout<< "Number of pairs done" << i << endl;
+			}
+			
+		}
+		cout<<" Number of Edges: "<< edges.size() << endl;
+		Graph graph(edges, tot_record);
+		//printGraph(graph, tot_record);
 
-	graph.connectedComponents(tot_record);
-	auto stop = high_resolution_clock::now();
-	auto duration = duration_cast<std::chrono::seconds>(stop - start);
+		graph.connectedComponents(tot_record);
+		auto stop = high_resolution_clock::now();
+		auto duration = duration_cast<std::chrono::milliseconds>(stop - start);
 
-	cout << "Time taken: " << duration.count()<< " seconds" << endl;
+		cout << "Time taken: " << duration.count()<< " seconds" << endl;
 
-	cout<<"Total Connected Components: " << graph.connected_component_list.size()<< endl;
-	int correct_component = calculateAccuracy(graph.connected_component_list, vec2D);
-	float accuracy = float(correct_component)/float(graph.connected_component_list.size());
-	cout<< "Correct Component: "<< correct_component << " out of " << graph.connected_component_list.size() <<endl;
-	cout<< "Accuracy: "<< accuracy << endl;
+		cout<<"Total Connected Components: " << graph.connected_component_list.size()<< endl;
+		string out_name = "out_"+ file_name + "_" + to_string(param_k);
+		string stat_file_name = "stat_"+ file_name + "_" + to_string(param_k);
+		writeConnectedComponentToFile(graph.connected_component_list, vec2D, out_name);
+		string stat_file_path = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/data/"+stat_file_name;
+		ofstream stat_file;
+		stat_file.open(stat_file_path);
+		stat_file << "DataSize: "<< tot_record << endl;
+		stat_file << "Number of Possible Pairs: " << (tot_record*(tot_record - 1))<< endl;
+		stat_file << "K value: "<< param_k << endl;
+		stat_file << "Number of pairs sampled: " << (tot_record*(tot_record - 1)) / param_k << endl;
+		stat_file << "Number of Edges: "<< edges.size() << endl;
+		stat_file << "Total Connected Components: " << graph.connected_component_list.size()<< endl;
+		stat_file << "Time taken: " << duration.count() << " seconds" << endl;
+		stat_file.close()
+	}
 }
-
-
 
 // g++ -I /opt/homebrew/Cellar/boost/1.79.0_2/include -o data_processing data_processing.cpp 
