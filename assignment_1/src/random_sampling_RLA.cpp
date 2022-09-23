@@ -449,7 +449,7 @@ int main(int argc, char** argv)
 		stat_file << "Number of Edges: "<< edges.size() << endl;
 		stat_file << "Total Connected Components: " << graph.connected_component_list.size()<< endl;
 		stat_file << "Time taken: " << duration.count() << " seconds" << endl;
-		stat_file.close()
+		stat_file.close();
 	}
 }
 
