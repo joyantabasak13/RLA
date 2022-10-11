@@ -7,6 +7,7 @@
 #include <cstdlib>
 #include <chrono>
 #include <set>
+#include <tuple>
 #include </opt/homebrew/Cellar/boost/1.79.0_2/include/boost/algorithm/string.hpp>
 
 using namespace std;
@@ -397,62 +398,63 @@ int main(int argc, char** argv)
 	vector<vector<string> > vec2D = getFormattedDataFromCSV(file_path);
 
     cout<< "Vector Size: "<< vec2D.size()<<endl;
-	//double param_k_values[1] = {1.0};
-	double param_k_values[6] = {1.0, 0.95, 0.90, 0.85, 0.80, 0.75};
-    // set seed
+	
     srand(1);
-	for(int k = 0; k<6; k++) {
-    // Algorithm
-		auto start = high_resolution_clock::now();
-		double param_k = param_k_values[k];
-		long long int tot_record = vec2D.size();
-		long long int tot_pair = int(((float)(tot_record*(tot_record - 1))) * param_k);
-		cout<< tot_record*(tot_record - 1) << " " << tot_pair << endl;
-		vector<Edge> edges;
+	
+	auto start = high_resolution_clock::now();
+	long long int tot_record = vec2D.size();
+	vector<Edge> edges;
+	set<tuple<int, int> > set_of_edges;
 
-		for( int i = 0; i<tot_pair; i++) {
-			int ind1 = rand() % tot_record;
-			int ind2 = rand() % tot_record;
-			while(ind1 == ind2) {
-				ind2 = rand() % tot_record;
+	for( int i = 0; i<tot_record; i++) {
+		for (int j = 0; j<tot_record; j++) {
+			if (i!=j) {
+				int edit_distance = calculateBasicED(vec2D[i][1], vec2D[j][1], 1);
+				if (edit_distance <= 1) {
+					
+					tuple<int, int> edge_tuple;
+					if (i<j) {
+						edge_tuple = make_tuple(i,j);
+					} else {
+						edge_tuple = make_tuple(j,i);
+					}
+
+					if (!set_of_edges.count(edge_tuple)) {
+						Edge edge(i, j);
+						edges.push_back(edge);
+						set_of_edges.insert(edge_tuple);
+					} else {
+						cout << "i: "<<i<<" j: "<< j << " Exists!"<<endl;
+					}
+				}
 			}
-			int edit_distance = calculateBasicED(vec2D[ind1][1], vec2D[ind2][1], 1);
-			if (edit_distance <= 1) {
-				Edge edge(ind1, ind2);
-				edges.push_back(edge);
-			}
-			if (i%100000 == 0)
-			{
-				cout<< "Number of pairs done" << i << endl;
-			}
-			
 		}
-		cout<<" Number of Edges: "<< edges.size() << endl;
-		Graph graph(edges, tot_record);
-		//printGraph(graph, tot_record);
-
-		graph.connectedComponents(tot_record);
-		auto stop = high_resolution_clock::now();
-		auto duration = duration_cast<std::chrono::milliseconds>(stop - start);
-
-		cout << "Time taken: " << duration.count()<< " seconds" << endl;
-
-		cout<<"Total Connected Components: " << graph.connected_component_list.size()<< endl;
-		string out_name = "out_"+ file_name + "_" + to_string(param_k);
-		string stat_file_name = "stat_"+ file_name + "_" + to_string(param_k);
-		writeConnectedComponentToFile(graph.connected_component_list, vec2D, out_name);
-		string stat_file_path = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/data/"+stat_file_name;
-		ofstream stat_file;
-		stat_file.open(stat_file_path);
-		stat_file << "DataSize: "<< tot_record << endl;
-		stat_file << "Number of Possible Pairs: " << (tot_record*(tot_record - 1))<< endl;
-		stat_file << "K value: "<< param_k << endl;
-		stat_file << "Number of pairs sampled: " << (tot_record*(tot_record - 1)) / param_k << endl;
-		stat_file << "Number of Edges: "<< edges.size() << endl;
-		stat_file << "Total Connected Components: " << graph.connected_component_list.size()<< endl;
-		stat_file << "Time taken: " << duration.count() << " seconds" << endl;
-		stat_file.close();
+		cout<< i<<" th Record Done!"<< endl;
 	}
+	cout<<" Number of Edges: "<< edges.size() << endl;
+	Graph graph(edges, tot_record);
+	//printGraph(graph, tot_record);
+
+	graph.connectedComponents(tot_record);
+	auto stop = high_resolution_clock::now();
+	auto duration = duration_cast<std::chrono::milliseconds>(stop - start);
+
+	cout << "Time taken: " << duration.count()<< " seconds" << endl;
+
+	cout<<"Total Connected Components: " << graph.connected_component_list.size()<< endl;
+	string out_name = "out_"+ file_name + "_exact";
+	string stat_file_name = "stat_"+ file_name + "_exact";
+	writeConnectedComponentToFile(graph.connected_component_list, vec2D, out_name);
+	string stat_file_path = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/data/"+stat_file_name;
+	stat_file.open(stat_file_path);
+	stat_file << "DataSize: "<< tot_record << endl;
+	stat_file << "Number of Possible Pairs: " << (tot_record*(tot_record - 1))<< endl;
+	stat_file << "Number of pairs sampled: " << set_of_edges.size()  << endl;
+	stat_file << "Number of Edges: "<< edges.size() << endl;
+	stat_file << "Total Connected Components: " << graph.connected_component_list.size()<< endl;
+	stat_file << "Time taken: " << duration.count() << " seconds" << endl;
+	stat_file.close();
+	
 }
 
 // g++ -I /opt/homebrew/Cellar/boost/1.79.0_2/include -o data_processing data_processing.cpp 
