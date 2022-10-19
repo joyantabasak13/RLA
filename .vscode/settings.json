@@ -3,6 +3,9 @@
         "istream": "cpp",
         "iosfwd": "cpp",
         "vector": "cpp",
-        "fstream": "cpp"
+        "fstream": "cpp",
+        "iostream": "cpp",
+        "tuple": "cpp",
+        "set": "cpp"
     }
 }

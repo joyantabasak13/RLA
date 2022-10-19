@@ -1,4 +1,4 @@
-cluster 1: 
+cluster 1:
 004283789	adahmsvirginia		/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/data/ds200_0	0	
 004283789	adamsvirginia		/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/data/ds200_1	1	
 004283789	adamsvirginia		/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/data/ds200_1	1	

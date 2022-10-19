@@ -248,10 +248,10 @@ vector<vector<string> > getFormattedDataFromCSV(string& file_path) {
         vector<string> vec;
         vec.push_back(result[0]);
         vec.push_back(result[1]);
-        vec.push_back(to_string(ind));
-        vec.push_back(to_string(0));
+        // vec.push_back(to_string(ind));
+        // vec.push_back(to_string(0));
         vec2D.push_back(vec);
-        ind++;
+        // ind++;
     }
     records.close();
     return vec2D;

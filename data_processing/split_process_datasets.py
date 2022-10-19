@@ -39,11 +39,17 @@ df = get_data(file_path_1, file_path_2)
 
 unique_ssn_list = df["SSN"]
 unique_ssn_list = list(dict.fromkeys(unique_ssn_list))
-datasizes = [7500, 10000]
+datasizes = [10000]
 
 for x in datasizes:
     ssn_list_x = random.sample(unique_ssn_list, x)
     df_x = df.loc[df['SSN'].isin(ssn_list_x)]
-    file_name = "ds" + str(x)
     print(len(df_x))
-    df_x.to_csv(file_name, index=False, header=False)
+
+df_list = np.array_split(df_x, 2)
+print(len(df_list))
+for x in range(0,len(df_list)):
+    df = pd.DataFrame(df_list[x])
+    file_name = "ds" + str(datasizes[0]) +"_"+ str(x)
+    df.to_csv(file_name, index=False, header=False)
+# df_x.to_csv(file_name, index=False, header=False)

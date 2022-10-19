@@ -3,6 +3,7 @@ import pandas as pd
 import csv
 import random
 
+
 def get_data(path1, path2):
     ssn_list = []
     name_list = []
@@ -11,7 +12,7 @@ def get_data(path1, path2):
         for row in tsv_reader:
             ssn_list.append(row[0])
             str = row[1] + row[2]
-            str = str.replace(" ","")
+            str = str.replace(" ", "")
             str = str.lower()
             name_list.append(str)
 
@@ -25,8 +26,9 @@ def get_data(path1, path2):
             name_list.append(str)
 
     df = pd.DataFrame(list(zip(ssn_list, name_list)),
-                 columns=['SSN', 'Name'])
+                      columns=['SSN', 'Name'])
     return df
+
 
 ###### Main Func ######
 
@@ -37,11 +39,11 @@ df = get_data(file_path_1, file_path_2)
 
 unique_ssn_list = df["SSN"]
 unique_ssn_list = list(dict.fromkeys(unique_ssn_list))
-datasizes = [200, 500, 1000, 2000, 3000, 5000]
+datasizes = [7500, 10000]
 
 for x in datasizes:
     ssn_list_x = random.sample(unique_ssn_list, x)
     df_x = df.loc[df['SSN'].isin(ssn_list_x)]
     file_name = "ds" + str(x)
     print(len(df_x))
-    df_x.to_csv(file_name, index = False, header = False)
+    df_x.to_csv(file_name, index=False, header=False)
