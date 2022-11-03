@@ -186,12 +186,12 @@ def get_linkage_fn(size, group_dict):
     return tot_fn
 ### main ###
 
-file_path = "/Users/joyanta/Documents/Research/Record_Linkage/codes/rla_cl_exact/obj/ClOutE10k_base26.txtOutFinal.txt"
+file_path = "/Users/joyanta/Documents/Research/Record_Linkage/codes/rla_cl_exact/obj/ClOutE20k_base36_overflow.txtOutFinal.txt"
 
 ### Calculate Cluster Accuracy
 max_component_size = 50
 tot_comp, correct_comp, incorrect_comp = get_data(file_path, max_component_size)
-number_of_records = 50000
+number_of_records = 100000
 expected_size = 5
 get_cluster_performance(tot_comp, correct_comp, incorrect_comp, expected_size, max_component_size)
 cluster_members_vec = get_clusters(file_path)
