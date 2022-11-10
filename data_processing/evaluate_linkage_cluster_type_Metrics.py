@@ -139,6 +139,20 @@ def get_total_records(ssn_dict):
     return r_count
 
 
+# Input: vector of dictionary {ssn:count} corresponding to a cluster
+# Output: Dict{size:count} of cluster sizes and number of them
+def get_cluster_sizes(clusters):
+    c_size_dict = {}
+    for x in clusters:
+        sum = 0
+        for y in x:
+            sum = sum + x[y]
+        if sum in c_size_dict:
+            c_size_dict[sum] = c_size_dict[sum] + 1
+        else:
+            c_size_dict[sum] = 1
+    return c_size_dict
+
 ### main ###
 
 # file_path = "/Users/joyanta/Downloads/output_edit_ds2.1.txtOutSingle"
@@ -182,4 +196,5 @@ print(f"Linkage Precision: {precision}")
 print(f"Linkage Recall: {recall}")
 print(f"Linkage f1 score: {f1_score}")
 print(f"Linkage Accuracy: {accuracy}")
-print(48679120/1674112)
+cluster_sizes_dict = get_cluster_sizes(per_cluster_ssn_group_dict)
+print(cluster_sizes_dict)
