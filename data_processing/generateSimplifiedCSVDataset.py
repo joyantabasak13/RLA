@@ -38,8 +38,8 @@ def get_data_and_write_csv(path1, path2, filename):
 
 ###### Main Func ######
 
-file_path_1 = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/19500671/ds11.1.1"
-file_path_2 = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/19500671/ds11.1.2"
-file_path_3 = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/data_1M"
+file_path_1 = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/19500671/ds2.1.1"
+file_path_2 = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/19500671/ds2.1.2"
+file_path_3 = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/data_100k"
 
 get_data_and_write_csv(file_path_1, file_path_2, file_path_3)

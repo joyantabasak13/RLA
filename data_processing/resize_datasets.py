@@ -39,7 +39,7 @@ df = get_data(file_path_1, file_path_2)
 
 unique_ssn_list = df["SSN"]
 unique_ssn_list = list(dict.fromkeys(unique_ssn_list))
-datasizes = [7500, 10000]
+datasizes = [20000, 50000]
 
 for x in datasizes:
     ssn_list_x = random.sample(unique_ssn_list, x)
