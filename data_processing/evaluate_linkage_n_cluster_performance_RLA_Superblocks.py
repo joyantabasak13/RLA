@@ -9,7 +9,7 @@ from math import comb
 
 def get_data(path, max_size):
     total_component = 0
-    correct_component_size = [0, 0, 0, 0, 0]
+    correct_component_size = [0] * max_size
     incorrect_component_size = [0] * max_size
     is_new_cluster = False
     cur_ssn = ''
@@ -160,12 +160,12 @@ def get_linkage_fn(size, group_dict):
     return tot_fn
 ### main ###
 
-file_path = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/assignment_2/out_ds200_super_blocking"
+file_path = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/Server_results/out_complete_linkage_ds3_200k_reverse_super_blocking"
 
 ### Calculate Cluster Accuracy
-max_component_size = 50
+max_component_size = 500
 tot_comp, correct_comp, incorrect_comp = get_data(file_path, max_component_size)
-number_of_records = 1000
+number_of_records = 50000
 expected_size = 5
 get_cluster_performance(tot_comp, correct_comp, incorrect_comp, expected_size, max_component_size)
 cluster_members_vec = get_clusters(file_path)
