@@ -8,6 +8,7 @@
 #include <chrono>
 #include <set>
 #include <tuple>
+#include <utility>
 // #include </usr/local/boost_1_80_0/boost/algorithm/string.hpp>
 #include <boost/algorithm/string.hpp>
 
@@ -15,6 +16,17 @@ using namespace std;
 using namespace std::chrono;
 
 int threshold = 99;
+int lenMax;
+int totalRecords;
+int totalUniqueRecords;
+
+vector<int> blockfieldArr;
+vector<string> uniqueblockfieldArr;
+vector<vector<int> > exactmatches;
+vector<vector<int> > block_list;
+vector<vector<string> > vec2D;
+vector<pair<int, string> > combinedData;
+vector<pair<int, string> > uniqueRecords;
 
 // helps edit distance calculation in calculateBasicED()
 int calculateBasicED2(string& str1, string& str2, int threshRem)
@@ -215,11 +227,41 @@ bool isWithinThesholdEditDistance (vector<string> &vec1, vector<string> &vec2, i
 	return false;
 }
 
+// Combines the fields to a string and also keeps original vector index
+void getCombinedData() {
+	string strSample(50, '0');
+	combinedData.resize(totalRecords);
+	int max = 0;
+	for (int i = 0; i< vec2D.size(); i++) {
+		pair<int, string> p;
+		p.first = i;
+		p.second = vec2D[i][1] + vec2D[i][2] + vec2D[i][3];
+		combinedData[i]=p;
+		if (max<p.second.size()) {
+			max = p.second.size();
+		}
+	}
+	lenMax = max;
+	// Padding to make all characters same size
+    for (int i = 0; i < totalRecords; ++i) {
+		int lenDiff		= lenMax - combinedData[i].second.length();
+		if(lenDiff > 0)
+			combinedData[i].second	+= strSample.substr(0, lenDiff);
+	}
+}
+
+void getBlockFieldData() {
+	blockfieldArr.resize(vec2D.size());
+	for (size_t i = 0; i < vec2D.size(); i++)
+	{
+		blockfieldArr[i] = vec2D[i][1].length();
+	}
+	
+}
 // reads data from one comma deliminated dataset (.CSV) file
 // returns a vector of string vector which contains ssn, name, DoD, DoB 
 vector<vector<string> > getFormattedDataFromCSV(string& file_path) {
     string line;
-    vector<vector<string> > vec2D;
     ifstream records(file_path);
 
     int ind = 0;
@@ -433,171 +475,93 @@ void writeConnectedComponentToFile(vector<vector<int> > &connected_component_lis
 	out_file.close();
 }
 
-//Input: vector of strings, size of the vector
-//Output: size of longest string in the vector
-size_t getMax(vector<vector<string> > &vec, int n){
-    size_t max = vec[0][1].size();
-    for (int i = 1; i < n; i++){
-        if (vec[i][1].size()>max)
-            max = vec[i][1].size();
-    }
-    return max;
-}
-
-// Input: vector of strings, size of the vector, digit
-// Output: Vector laxically sorted by the digit-th character
-// Note: Only handles Alphabets
-void countSort(vector<vector<string> > &vec, int size, size_t k, int col){
-    int *c = NULL; 
-	string *name = NULL; 
-	string *ssn = NULL;
-	string *dod = NULL;
-	string *dob = NULL;
-	int alphabet_size = 0;
-	int mode = 0; // Mode = 1 for english alphabets, Mode = 2 for numericals(date)
-	if (col == 1) {
-		alphabet_size = 27;
-		mode = 1;
-	} else {
-		alphabet_size = 11;
-		mode = 2;
-	}
-	c = new int[alphabet_size];
-    name = new string[size];
-	ssn = new string[size];
-	dod = new string[size];
-	dob = new string[size];
-
-    for (int i = 0; i <alphabet_size; i++){
-        c[i] = 0;
-    }
+// Input: vector of strings, NEEDs lenmax global var
+// Output: Vector laxically sorted
+void radixSort(vector<pair<int, string> > &combData){
+	vector<pair<int, string>> tempArr(totalRecords);
 	
-    for (int j = 0; j <size; j++){
-		if (mode == 1) {
-			c[k < vec[j][col].size() ? (int)(unsigned char)vec[j][col][k] - 97 + 1 : 0]++;   //vec[j][1] is the name string
-		} else if (mode == 2) {
-			c[k < vec[j][col].size() ? (int)(unsigned char)vec[j][col][k] - 48 + 1 : 0]++;	// For dates
-		}
-    }
-
-    for (int f = 1; f <alphabet_size; f++){
-        c[f] += c[f - 1];
-    }
-	
-    for (int r = size - 1; r >= 0; r--){
-		int ind = 0;
-		if (mode == 1) {
-			ind = k < vec[r][col].size() ? (int)(unsigned char)vec[r][col][k] - 97 + 1 : 0;
-		} else if (mode == 2) {
-			ind = k < vec[r][col].size() ? (int)(unsigned char)vec[r][col][k] - 48 + 1 : 0;
-		}
-		// Only fire when erroreneous character is present
-		// if(ind < 0 || ind > alphabet_size) {
-		// 	cout<< "Naughty Character is: " << vec[r][col][k] << endl;
-		// 	cout<< "Naughty String is: "<< vec[r][col] << endl;
-		// }
-		// cout<< "Accessing out-of-array? " << ind << endl;
-		// TO-DO : Need a better mechnism than keeping 5 arrays. Keep a vec of vec instead ?
-		if (mode == 1) {
-			name[c[k < vec[r][col].size() ? (int)(unsigned char)vec[r][col][k] - 97 + 1 : 0] - 1] = vec[r][1];
-        	ssn[c[k < vec[r][col].size() ? (int)(unsigned char)vec[r][col][k] - 97 + 1 : 0] - 1] = vec[r][0];
-			dod[c[k < vec[r][col].size() ? (int)(unsigned char)vec[r][col][k] - 97 + 1 : 0] - 1] = vec[r][2];
-			dob[c[k < vec[r][col].size() ? (int)(unsigned char)vec[r][col][k] - 97 + 1 : 0] - 1] = vec[r][3];
-			c[k < vec[r][col].size() ? (int)(unsigned char)vec[r][col][k] - 97 + 1 : 0]--;
-		} else if (mode == 2) {
-			name[c[k < vec[r][col].size() ? (int)(unsigned char)vec[r][col][k] - 48 + 1 : 0] - 1] = vec[r][1];
-        	ssn[c[k < vec[r][col].size() ? (int)(unsigned char)vec[r][col][k] - 48 + 1 : 0] - 1] = vec[r][0];
-			dod[c[k < vec[r][col].size() ? (int)(unsigned char)vec[r][col][k] - 48 + 1 : 0] - 1] = vec[r][2];
-			dob[c[k < vec[r][col].size() ? (int)(unsigned char)vec[r][col][k] - 48 + 1 : 0] - 1] = vec[r][3];
-			c[k < vec[r][col].size() ? (int)(unsigned char)vec[r][col][k] - 48 + 1 : 0]--;
-		}
-    }
-
-    for (int l = 0; l < size; l++){
-		vec[l][0] = ssn[l];
-        vec[l][1] = name[l];
-		vec[l][2] = dod[l];
-		vec[l][3] = dob[l];
+	for (int i = lenMax - 1; i >= 0; --i) {
+		vector<int> countArr(256, 0);
 		
-    }
-
-    // avold memory leak
-	delete[] c;
-    delete[] ssn;
-	delete[] name;
-	delete[] dod;
-	delete[] dob;
+		for (int j = 0; j < totalRecords; ++j) {
+			countArr[(combData[j].second)[i]]++;
+		}
+		
+		for (int k = 1; k < 256; ++k)
+			countArr[k]	+= countArr[k - 1];
+		
+		for (int j = totalRecords - 1; j >= 0; --j)
+			tempArr[--countArr[(combData[j].second)[i]]]	= combData[j];
+		
+		for (int j = 0; j < totalRecords; ++j)
+			combData[j]	= tempArr[j];
+	}
 }
 
-
-// Input: referance to a vector of strings, number of first r strings we want to sort (generally r = vec.size()), column of vec we want to sort
-// Output: laxically sorted vector of strings
-void radixSort(vector<vector<string> > &vec, int r, int col){
-	size_t max = 0;
-	if (col == 1) {
-		// cout<<"getting max" << endl;
-		max = getMax(vec, r);
-		// cout<< "got max" << endl;
-	} else {
-		max = 8;	// Dates are all 8 digit numbers
-	}			
-	cout << "max is: "<< max << endl;
-    for (size_t digit = max; digit > 0; digit--){ // size_t is unsigned, so avoid using digit >= 0, which is always true
-        // cout<< "Digit: "<< digit << endl;
-		countSort(vec, r, digit - 1, col);
-    }
-}
-
-// Do exact clustering from lexically sorted vector of strings
-void getExactMatches(vector<vector<string> > &vec, vector<vector<string> > &matches) {
-	vector<string> tempVec;
-	tempVec.push_back(vec[0][0]);
-	tempVec.push_back(vec[0][1]);
-	tempVec.push_back(vec[0][2]);
-	tempVec.push_back(vec[0][3]);
-	tempVec.push_back(to_string(0)); // starting index
-	for (size_t i = 1; i < vec.size(); i++)
-	{
-		if ((vec[i][1] != vec[i-1][1])|| (vec[i][2] != vec[i-1][2]) || (vec[i][3] != vec[i-1][3])) {
-			tempVec.push_back(to_string(i-1)); //ending index
-			matches.push_back(tempVec);
+// Do exact clustering from lexically sorted vector of int,string pair
+void getExactMatches() {
+	vector<int> tempVec;
+	tempVec.push_back(combinedData[0].first);
+	
+	for (int i = 1; i < totalRecords; ++i) {
+		if(combinedData[i].second.compare(combinedData[i - 1].second) == 0)
+			tempVec.push_back(combinedData[i].first);
+		else {
+			exactmatches.push_back(tempVec);
 			tempVec.clear();
-			tempVec.push_back(vec[i][0]);
-			tempVec.push_back(vec[i][1]);
-			tempVec.push_back(vec[i][2]);
-			tempVec.push_back(vec[i][3]);
-			tempVec.push_back(to_string(i));
+			tempVec.push_back(combinedData[i].first);
 		}
 	}
-	tempVec.push_back(to_string(vec.size()-1));
-	matches.push_back(tempVec);
+	exactmatches.push_back(tempVec);
+	totalUniqueRecords = exactmatches.size();
+	cout << endl << "total exact clusters: " << totalUniqueRecords << endl;
 }
 
-void doNormalBlocking(vector<vector<int> > &block_list, vector<vector<string> > &exactmatches) {
+void getUniqueEntries() {
+	uniqueRecords.resize(totalUniqueRecords);
+
+	for (size_t i = 0; i < totalUniqueRecords; i++)
+    {
+        uniqueRecords[i] = combinedData[exactmatches[i][0]];
+    }
+}
+
+void getUniqueBlockFieldArr() {
+	uniqueblockfieldArr.resize(totalUniqueRecords);
+	for (size_t i = 0; i < totalUniqueRecords; i++)
+	{
+		uniqueblockfieldArr[i] = blockfieldArr[uniqueRecords[i].first];
+	}
+	
+}
+
+
+void doNormalBlocking() {
 	int base = 26;
 	int kmer = 3;
-	int blockTotal = pow(26,kmer);
-	// vector<vector<int> > block_list;
+	//long long int total_blocked = 0;
+	int blockTotal = pow(base,kmer);
 	block_list.resize(blockTotal);
-	// int blocked_total = 0;
-	//cout<< "Block resized to: "<< block_list.size() << endl;
-	for (size_t i = 0; i < exactmatches.size(); i++)
+
+	// cout<< "Total unique clusters: " << totalUniqueRecords << endl;
+
+	for (size_t i = 0; i < totalUniqueRecords; i++)
 	{
-		// cout<< "String size: "<< exactmatches[i][1].size()<<endl;
-		// blocked_total += exactmatches[i][1].size() - kmer + 1;
-		for (size_t j = 0; j < exactmatches[i][1].size() - kmer + 1 ; j++)
-		{
+		string blockingStr = vec2D[1][uniqueRecords[i].first];
+
+		for (size_t j = 0; j < blockingStr.size() - kmer + 1 ; ++j)
+		{ 
 			int blockID = 0;
-			for (size_t k = j; k < j+ kmer; k++)
+
+			for (size_t k = 0; k < kmer; ++k)
 			{
-				// cout<< "Here k: " << k << endl;
-				blockID += (int)(exactmatches[i][1][k] - 97) * pow(base,k-j);
+				blockID += ((int)blockingStr[j+k] - 97) * pow(base,k);
 			}
-			// cout<<"i: "<< i << " j: "<< j << " BlockId "<< blockID << endl;
 			block_list[blockID].push_back(i);
+			//total_blocked++;
 		}
 	}
-	// cout<< "Blocks assigned" << endl;
+	//cout<< "Total blocked: " << total_blocked << endl;
 }
 
 void doSuperBlocking(vector<vector<int> > &block_list, vector<vector<string> > &exactmatches) {
@@ -651,138 +615,131 @@ void doReverseSuperBlocking(vector<vector<int> > &block_list, vector<vector<stri
 
 int main(int argc, char** argv)
 {
-	string file_name = argv[1];
-    // Read Data
-	// For server
-    // string file_path = "/home/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/"+file_name;
-	// For my laptop
-	string file_path = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/"+file_name;
+	string file_path = argv[1];
 	ofstream stat_file;
-	vector<vector<string> > vec2D = getFormattedDataFromCSV(file_path);
+	getFormattedDataFromCSV(file_path);
+	totalRecords = vec2D.size();
+	getCombinedData();
+	getBlockFieldData();
 	cout<< "Number of Records: " << vec2D.size() << endl;
-	// for (size_t i = 0; i < vec2D.size(); i++)
+
+	// for (size_t i = 0; i < 10; i++)
 	// {
-	// 	cout<< vec2D[i][0] << " " << vec2D[i][1] << " " << vec2D[i][2] << " " << vec2D[i][3] << endl;
+	// 	cout<< combinedData[i].second << endl;
 	// }
 
 	// Start counting time
-	auto start = high_resolution_clock::now();
+	clock_t start_t = clock();
 
 	// Sort the Strings
-	radixSort(vec2D, vec2D.size(), 3); // By Date of Birth
-	cout<< "DOB Done" << endl;
-	radixSort(vec2D, vec2D.size(), 2); // By Date of Death
-	cout<< "DoD done" << endl;
-	radixSort(vec2D, vec2D.size(), 1); // By name 
-	cout<< "Name Done" << endl;
+	radixSort(combinedData);
+	cout<< "Sorting Done" << endl;
 
-	auto sorting_time = high_resolution_clock::now();
-	auto sorting_duration = duration_cast<std::chrono::milliseconds>(sorting_time - start);
-	cout << "Time taken For sorting: " << sorting_duration.count()<< " milliSeconds" << endl;
+	clock_t sorting_t = clock();
+	double sorting_duration_t	= (double)(clock() - start_t) / CLOCKS_PER_SEC;
+    cout<< "Sorting time: "<< sorting_duration_t <<" seconds" << endl;
 
-    cout<< "after sorting:";
-    // // for (size_t i = 0; i < vec2D.size(); i++) {
-    // //     cout<< vec2D[i][0] << " " << vec2D[i][1] << " " << vec2D[i][2] << " " << vec2D[i][3] << endl;
-    // // }
+    // for (size_t i = 0; i < 10; i++) {
+    //     cout<< combinedData[i].second << endl;
+    // }
+	clock_t exact_clustering_start_t = clock();
+	getExactMatches();
+	getUniqueEntries();
+	
+	double exact_clustering_duration_t	= (double)(clock() - exact_clustering_start_t) / CLOCKS_PER_SEC;
+    cout<< "Exact Clustering time: "<< exact_clustering_duration_t <<" seconds" << endl;
 
-	// vector<vector<string> > exactmatches;
 
-	// getExactMatches(vec2D, exactmatches);
-
-	// cout << "Exact Clustering size: " << exactmatches.size() << endl;
-
-	// // for (size_t i = 0; i < exactmatches.size(); i++)
-	// // {
-	// // 	cout<< exactmatches[i][0] << " " << exactmatches[i][1] << " " << exactmatches[i][2] << " " << exactmatches[i][3] << " " << exactmatches[i][4] << " " << exactmatches[i][5] << endl; 
-	// // }
-
-	// // for (size_t i = 0; i < exactmatches.size(); i++)
-	// // {
-	// // 	if((exactmatches[i][4] != exactmatches[i][5]) && ((stoi(exactmatches[i][5]) - stoi(exactmatches[i][4])) != 3)) {
-	// // 		cout<< exactmatches[i][0] << " " << exactmatches[i][1] << " " << exactmatches[i][2] << " " << exactmatches[i][3] << " " << exactmatches[i][4] << " " << exactmatches[i][5] << endl; 
-	// // 	}	
-	// // }
-
-	// // Do usual Blocking
-	// vector<vector<int> > block_list;
-	// doNormalBlocking(block_list, exactmatches);
-	// // doSuperBlocking(block_list, exactmatches);
-	// // doReverseSuperBlocking(block_list, exactmatches);
-	// cout<< "Blocking Done" << endl;
-	// vector<Edge> edges;
-	// set<tuple<int, int> > set_of_edges;
-
-	// for( int i = 0; i< block_list.size(); i++) {
-	// 	for (int j = 0; j< block_list[i].size(); j++) {
-	// 		for (size_t k = j+1; k < block_list[i].size(); k++)
-	// 		{
-	// 			if (j!=k) {
-	// 				string first_element = exactmatches[block_list[i][j]][1];
-	// 				string second_element = exactmatches[block_list[i][k]][1];
-	// 				int edit_distance = 0;
-	// 				// Optimize more here in terms of vec-of-vec access
-	// 				int name_dist = calculateBasicED(first_element, second_element, 1);
-	// 				if (name_dist <= 1) {
-	// 					string first_dod = exactmatches[block_list[i][j]][2];
-	// 					string second_dod = exactmatches[block_list[i][k]][2];
-	// 					int dod_dist = calculateBasicED(first_dod, second_dod, 1);
-	// 					if (dod_dist <= 1) {
-	// 						string first_dob = exactmatches[block_list[i][j]][3];
-	// 						string second_dob = exactmatches[block_list[i][k]][3];
-	// 						int dob_dist = calculateBasicED(first_dob, second_dob, 1);
-	// 						if (dob_dist > 1) {
-	// 							edit_distance = threshold + 1; //Maybe you don't need to do this, dist func already returns this
-	// 						}
-	// 					} else {
-	// 						edit_distance = threshold + 1;
-	// 					}
-	// 				} else {
-	// 					edit_distance = threshold + 1;
-	// 				}
-	// 				if (edit_distance <= 1) {
-	// 					//cout<< "No Prob. i = "<< i << " j= "<< j << " k= "<< k <<endl;
-	// 					tuple<int, int> edge_tuple;
-	// 					int j_th_record_id = block_list[i][j];
-	// 					int k_th_record_id = block_list[i][k];
-	// 					if (j_th_record_id < k_th_record_id) {
-	// 						edge_tuple = make_tuple(j_th_record_id, k_th_record_id);
-	// 					} else {
-	// 						edge_tuple = make_tuple(k_th_record_id, j_th_record_id);
-	// 					}
-
-	// 					if (!set_of_edges.count(edge_tuple)) {
-	// 						// Edge edge(i, j);
-	// 						// edges.push_back(edge);
-	// 						set_of_edges.insert(edge_tuple);
-	// 					} 
-	// 					// else {
-	// 					// 	cout << "i: "<<i<<" j: "<< j << " Exists!"<<endl;
-	// 					// }
-	// 				}
-	// 			}
-	// 		}	
+	// for (size_t i = 0; i < exactmatches.size(); i++)
+	// {
+	// 	if ((exactmatches[i].size() != 4) && (exactmatches[i].size()!=1)) {
+	// 		for(int j=0; j<exactmatches[i].size(); j++) {
+	// 			cout<< vec2D[exactmatches[i][j]][0] << " " << vec2D[exactmatches[i][j]][1] << "  ";
+	// 		}
+	// 		cout<< endl;
 	// 	}
-	// 	// cout<< i<<" th Block Done!"<< endl;
 	// }
 
-	// for(auto e : set_of_edges) {
-	// 	int u = std::get<0>(e);
-	// 	int v = std::get<1>(e);
-	// 	// cout<< u << " " << v << endl;
-	// 	Edge edge(u, v);
-	// 	edges.push_back(edge);
-	// }
+	// Do usual Blocking
+	clock_t blocking_start_t = clock();
+	doNormalBlocking();
+	double blocking_duration_t	= (double)(clock() - blocking_start_t) / CLOCKS_PER_SEC;
+    cout<< "Normal Blocking time: "<< blocking_duration_t <<" seconds" << endl;
+
+	// doSuperBlocking(block_list, exactmatches);
+	// doReverseSuperBlocking(block_list, exactmatches);
+	cout<< "Blocking Done" << endl;
+	vector<Edge> edges;
+	set<tuple<int, int> > set_of_edges;
+
+	for( int i = 0; i< block_list.size(); i++) {
+		for (int j = 0; j< block_list[i].size(); j++) {
+			for (size_t k = j+1; k < block_list[i].size(); k++)
+			{
+				string first_element = uniqueRecords[block_list[i][j]].second;
+				string second_element = uniqueRecords[block_list[i][k]].second;
+				// Optimize more here in terms of vec-of-vec access
+				int name_dist = calculateBasicED(first_element, second_element, 1);
+				// if (name_dist <= 1) {
+				// 	string first_dod = exactmatches[block_list[i][j]][2];
+				// 	string second_dod = exactmatches[block_list[i][k]][2];
+				// 	int dod_dist = calculateBasicED(first_dod, second_dod, 1);
+				// 	if (dod_dist <= 1) {
+				// 		string first_dob = exactmatches[block_list[i][j]][3];
+				// 		string second_dob = exactmatches[block_list[i][k]][3];
+				// 		int dob_dist = calculateBasicED(first_dob, second_dob, 1);
+				// 		if (dob_dist > 1) {
+				// 			edit_distance = threshold + 1; //Maybe you don't need to do this, dist func already returns this
+				// 		}
+				// 	} else {
+				// 		edit_distance = threshold + 1;
+				// 	}
+				// } else {
+				// 	edit_distance = threshold + 1;
+				// }
+				if (name_dist <= 1) {
+					//cout<< "No Prob. i = "<< i << " j= "<< j << " k= "<< k <<endl;
+					tuple<int, int> edge_tuple;
+					int j_th_record_id = block_list[i][j];
+					int k_th_record_id = block_list[i][k];
+					if (j_th_record_id < k_th_record_id) {
+						edge_tuple = make_tuple(j_th_record_id, k_th_record_id);
+					} else {
+						edge_tuple = make_tuple(k_th_record_id, j_th_record_id);
+					}
+
+					if (!set_of_edges.count(edge_tuple)) {
+						// Edge edge(i, j);
+						// edges.push_back(edge);
+						set_of_edges.insert(edge_tuple);
+					} 
+
+				}
+				
+			}	
+		}
+
+	}
+
+	for(auto e : set_of_edges) {
+		int u = std::get<0>(e);
+		int v = std::get<1>(e);
+		// cout<< u << " " << v << endl;
+		Edge edge(u, v);
+		edges.push_back(edge);
+	}
 	
 	// cout<<" Number of Edges: "<< edges.size() << endl;
-	// Graph graph(edges, exactmatches.size());
+	Graph graph(edges, totalUniqueRecords);
 
 	// // printGraph(graph, exactmatches.size());
 
-	// graph.connectedComponents(exactmatches.size());
+	graph.connectedComponents(totalUniqueRecords);
 	// //graph.printConnectedComponents(exactmatches);
-	// auto stop_single = high_resolution_clock::now();
-	// auto duration_single = duration_cast<std::chrono::milliseconds>(stop_single - start);
 
+	double approx_clustering_duration_t	= (double)(clock() - start_t) / CLOCKS_PER_SEC;
+    cout<< "Approx Clustering time: "<< approx_clustering_duration_t <<" seconds" << endl;
+	return 0;
 	// cout << "Time taken: (For single clustering) " << duration_single.count()<< " milli seconds" << endl;
 
 	// // Get final Clusters

@@ -187,7 +187,7 @@ def get_linkage_fn(size, group_dict):
 ### main ###
 
 #file_path = "/Users/joyanta/Documents/Research/Record_Linkage/codes/rla_cl_exact/obj/ClOutE20k_base36_overflow.txtOutFinal.txt"
-file_path = "/Users/joyanta/Downloads/output_edit_ds2.1.txtOutSingle"
+file_path = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/Server_results/ClOut_ds1_50k__TIMEOutFinal.txt"
 
 ### Calculate Cluster Accuracy
 max_component_size = 100

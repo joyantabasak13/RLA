@@ -21,6 +21,7 @@ int totalRecords = 50000;
 int lenMax;
 int totalUniqueRecords;
 int attributes;
+int extraEdges = 0;
 
 vector<int> blockfieldArr;
 // vector<string> uniqueblockfieldArr;
@@ -32,6 +33,7 @@ vector<string> vec1D;
 vector<vector<string> > vec2D;
 vector<vector<int> > clusterExactIndArr;
 vector<pair<int,string> > uniqueRecords;
+vector<pair<int,string> > headlessCopies;
 vector<pair<int, string> > combinedData;
 
 vector<vector<int> > edgeArr;
@@ -284,22 +286,23 @@ void getCombinedData() {
 }
 
 void radixSort(vector<pair<int, string> > &strDataArr){
-	vector<pair<int, string>> tempArr(totalRecords);
+	int numRecords = strDataArr.size();
+	vector<pair<int, string>> tempArr(numRecords);
 	
 	for (int i = lenMax - 1; i >= 0; --i) {
 		vector<int> countArr(256, 0);
 		
-		for (int j = 0; j < totalRecords; ++j) {
+		for (int j = 0; j < numRecords; ++j) {
 			countArr[(strDataArr[j].second)[i]]++;
 		}
 		
 		for (int k = 1; k < 256; ++k)
 			countArr[k]	+= countArr[k - 1];
 		
-		for (int j = totalRecords - 1; j >= 0; --j)
+		for (int j = numRecords - 1; j >= 0; --j)
 			tempArr[--countArr[(strDataArr[j].second)[i]]]	= strDataArr[j];
 		
-		for (int j = 0; j < totalRecords; ++j)
+		for (int j = 0; j < numRecords; ++j)
 			strDataArr[j]	= tempArr[j];
 	}
 }
@@ -342,6 +345,42 @@ void getUniqueEntries() {
     }
 }
 
+void doSortedComp() {
+	headlessCopies.resize(2*totalUniqueRecords);
+	for(int i=0; i< uniqueRecords.size(); i++) { 
+		headlessCopies[i].first = i;
+		headlessCopies[i].second = uniqueRecords[i].second;
+		headlessCopies[totalUniqueRecords+i].first = i;
+		headlessCopies[totalUniqueRecords+i].second = uniqueRecords[i].second.substr(1,uniqueRecords[i].second.size()-1) + '0';
+		// cout<< uniqueRecords[i].second << endl;
+		// cout<< headlessCopies[totalUniqueRecords+i].second << endl;
+	}
+	radixSort(headlessCopies);
+	for (int i = 1; i < headlessCopies.size(); i++) {
+		// cout<< headlessCopies[i].second << endl;
+		if (headlessCopies[i-1].second.compare(headlessCopies[i].second) == 0) {
+			// cout<< headlessCopies[i-1].first << " " << headlessCopies[i-1].second << endl;
+			// cout<< headlessCopies[i].first << " " << headlessCopies[i].second << endl;
+			pair<int, int> edge_pair;
+            int i_th_record_id = headlessCopies[i-1].first;
+            int j_th_record_id = headlessCopies[i].first;
+            if (i_th_record_id < j_th_record_id) {
+                edge_pair.first = i_th_record_id;
+                edge_pair.second = j_th_record_id;
+            } else {
+                edge_pair.first = j_th_record_id;
+                edge_pair.second = i_th_record_id;
+            }
+			
+            if (!set_of_edges.count(edge_pair)) {
+                set_of_edges.insert(edge_pair);
+				extraEdges++;
+            }
+		}
+	}
+	cout<< "Edges Added: "<< extraEdges << endl;
+}
+
 void doNormalBlocking() {
 	int base = 26;
 	int kmer = 3;
@@ -368,6 +407,47 @@ void doNormalBlocking() {
 			{
 				blockID += ((int)blockingStr[j+k] - 97) * pow(base,k);
 			}
+			if(!block_list[blockID].count(i)){
+                block_list[blockID].insert(i);
+                unique_blocked++;
+            }
+			total_blocked++;
+		}
+	}
+	cout<< "Total blocked: " << total_blocked << endl;
+    cout<< "Uniquely blocked: " << unique_blocked << endl;
+    cout<< "Total string size covered: " << total_str_size << endl;
+    cout<< "Expected blocks:" << total_str_size - (kmer-1)*totalUniqueRecords << endl;
+}
+
+void doSuperBlocking() {
+	int base = 26;
+	int kmer = 3;
+    int blockID = 0;
+	int total_blocked = 0;
+    int unique_blocked = 0;
+    int total_str_size = 0;
+	int perAplhaBlocks = pow(base,kmer);
+	int blockTotal = base * perAplhaBlocks;
+	block_list.resize(blockTotal);
+
+	cout<< "Total unique records: " << totalUniqueRecords << endl;
+
+	for (int i = 0; i < totalUniqueRecords; i++)
+	{
+		string blockingStr = vec1D[uniqueRecords[i].first*attributes + 1];
+        // string blockingStr = vec2D[uniqueRecords[i].first][1];
+        total_str_size += blockingStr.size();
+        // cout<< i << "\t" << blockingStr << "\t" << blockingStr.size() << endl;
+		for (int j = 0; j < blockingStr.size() - kmer + 1 ; ++j)
+		{
+			blockID = 0;
+
+			for (int k = 0; k < kmer; ++k)
+			{
+				blockID += ((int)blockingStr[j+k] - 97) * pow(base,k);
+			}
+			blockID = (blockingStr[0]-97)*perAplhaBlocks + blockID;
 			if(!block_list[blockID].count(i)){
                 block_list[blockID].insert(i);
                 unique_blocked++;
@@ -485,7 +565,6 @@ int findRoot(int pointID, vector<int> &parentArr)
 
 	return parentArr[pointID];
 }
-
 
 //  find clusters as connected components in a graph where edges are connection among records and vertices are record index
 void findConnComp()
@@ -637,8 +716,8 @@ void writeFinalConnectedComponentToFile(string& result_file_name) {
 
 
 int main(int argc, char** argv) {
-    string filePath = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/";
-    // string filePath = "/home/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/";
+    // string filePath = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/";
+    string filePath = "/home/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/";
     string fileName = argv[1];
     filePath = filePath + argv[1];
     getFormattedDataFromCSV(filePath);
@@ -658,6 +737,11 @@ int main(int argc, char** argv) {
     getUniqueEntries();
     double findingExact_t	= (double)(clock() - currTS3) / CLOCKS_PER_SEC;
     cout<< "My Exact Clustering time "<< findingExact_t << endl;
+
+	clock_t currTS3_1	= clock();
+	doSortedComp();
+	double sortingComp_t	= (double)(clock() - currTS3_1) / CLOCKS_PER_SEC;
+	cout<< "Sorting and Comparision time "<< sortingComp_t << endl;
     
     // for (size_t i = 0; i < uniqueRecords.size(); i++)
 	// {
@@ -667,9 +751,9 @@ int main(int argc, char** argv) {
     
 
     clock_t currTS4	= clock();
-    doNormalBlocking();
+    doSuperBlocking();
     double blocking_t	= (double)(clock() - currTS4) / CLOCKS_PER_SEC;
-    cout<< "Normal Blocking time "<< blocking_t << endl;
+    cout<< "Super Blocking time "<< blocking_t << endl;
 
     clock_t currTS5	= clock();
     createClusterEdgeList();
@@ -705,11 +789,11 @@ int main(int argc, char** argv) {
 	cout<< "Total Approximately Connected Components: " << approxConnectedComponents.size()<< endl;
 	cout<< "Total Final Connected Components: " << finalConnectedComponents.size() << endl;
 
-    string out_file_path = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/data/";
-    // string out_file_path = "/home/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/data/";
-	string out_name1 = out_file_path + "out_single_linkage_"+ fileName + "_normal_blocking";
-	string out_name2 = out_file_path + "out_complete_linkage_"+ fileName + "_normal_blocking";
-	string stat_file_name = "stat_"+ fileName + "_normal_blocking";
+    // string out_file_path = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/data/";
+    string out_file_path = "/home/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/data/";
+	string out_name1 = out_file_path + "out_single_linkage_"+ fileName + "_super_blocking";
+	string out_name2 = out_file_path + "out_complete_linkage_"+ fileName + "_super_blocking";
+	string stat_file_name = "stat_"+ fileName + "_super_blocking";
 
 	writeFinalConnectedComponentToFile(out_name2);
 
@@ -725,7 +809,8 @@ int main(int argc, char** argv) {
 	stat_file << "Total Complete Clusters " << finalConnectedComponents.size() << endl;
 	stat_file << "Total Time taken: " << total_t << " Seconds" << endl;
 	stat_file << "Sorting time: " << sorting_t << " Seconds" << endl;
-    stat_file << "Finding Exact Clusters time: " << findingExact_t << " Seconds" << endl;
+	stat_file << "Sorting with head removed and Comparison time: " << sortingComp_t << " Seconds" << endl;
+	stat_file << "Finding Exact Clusters time: " << findingExact_t << " Seconds" << endl;
     stat_file << "Blocking time: " << blocking_t << " Seconds" << endl;
     stat_file << "Edge generation Time: " << createEdges_t << " Seconds" << endl;
     stat_file << "Find Approximate Clusters Time: " << findComp_t << " Seconds" << endl;

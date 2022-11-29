@@ -9,7 +9,7 @@ from math import comb
 
 # Reads a cluster file in Mamun's format
 # Returns a vector of clusters where clusters are vector of SSN in the cluster
-def get_clusters(path):
+def get_rlaCL_clusters(path):
     total_cluster_vec = []
     cluster_vec = []
     with open(path, "r", encoding="utf8") as file:
@@ -30,6 +30,24 @@ def get_clusters(path):
     #     print(i)
     return total_cluster_vec
 
+def get_my_clusters(path):
+    total_cluster_vec = []
+    cluster_vec = []
+    with open(path, "r", encoding="utf8") as file:
+        csv_reader = csv.reader(file, delimiter=",")
+        for row in csv_reader:
+            cluster_vec = []
+            if len(row) > 0:
+                for uid in row:
+                    if len(uid) > 1:
+                        cluster_vec.append(uid)
+            cluster_vec.sort()
+            total_cluster_vec.append(cluster_vec)
+
+    #ruru
+    # for i in total_cluster_vec:
+    #     print(i)
+    return total_cluster_vec
 
 # Takes input vector of clusters
 # Outputs (i) a dictionary where SSN are keys and a tuple nis the value. Tuple contains number of records of key
@@ -156,11 +174,11 @@ def get_cluster_sizes(clusters):
 ### main ###
 
 # file_path = "/Users/joyanta/Downloads/output_edit_ds2.1.txtOutSingle"
-file_path = "/Users/joyanta/Downloads/q_gram_v_0.1.txtOutSingle"
+file_path = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/Server_results/out_complete_linkage_ds7_1M_normal_blocking"
 
 ### Calculate Cluster Accuracy
 
-cluster_members_vec = get_clusters(file_path)
+cluster_members_vec = get_my_clusters(file_path)
 ssn_tot_dict, ssn_group_dict, per_cluster_ssn_group_dict = get_ssn_info(cluster_members_vec)
 total_clusters = len(cluster_members_vec)
 types_counts = get_cluster_types(per_cluster_ssn_group_dict, ssn_tot_dict)
