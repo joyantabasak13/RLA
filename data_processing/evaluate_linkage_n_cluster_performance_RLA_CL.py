@@ -57,13 +57,6 @@ def get_cluster_performance(total_component, correct_component_size, incorrect_c
         frac = frac * 100.0
         print("Correct Comp of Size" + str(i + 1) + " : " + str(correct_component_size[i]) + ' (' + "{:.2f}".format(
             frac) + '%)')
-        # print("Frac of   Correct Comp of Size" + str(i+1) + " : " + str(frac))
-    # for i in range(max_size):
-    #     frac = incorrect_component_size[i] / total_component
-    #     frac = frac * 100.0
-    #     print("Incorrect Comp of Size" + str(i + 1) + " : " + str(incorrect_component_size[i]) + ' (' + "{:.2f}".format(
-    #         frac) + '%)')
-        # print("Frac of   InCorrect Comp of Size" + str(i+1) + " : " + str(frac))
     return
 
 
@@ -186,13 +179,13 @@ def get_linkage_fn(size, group_dict):
     return tot_fn
 ### main ###
 
-#file_path = "/Users/joyanta/Documents/Research/Record_Linkage/codes/rla_cl_exact/obj/ClOutE20k_base36_overflow.txtOutFinal.txt"
-file_path = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/Server_results/ClOut_ds1_50k__TIMEOutFinal.txt"
+file_path = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/Server_results/run2_11Dec/ClOut_ds6_800k__TIMEOutFinal.txt"
+# file_path = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/Server_results/run2_11Dec/out_complete_linkage_ds1_50k_normal_blocking.txt"
 
 ### Calculate Cluster Accuracy
 max_component_size = 100
 tot_comp, correct_comp, incorrect_comp = get_data(file_path, max_component_size)
-number_of_records = 100000
+number_of_records = 50000
 expected_size = 5
 get_cluster_performance(tot_comp, correct_comp, incorrect_comp, expected_size, max_component_size)
 cluster_members_vec = get_clusters(file_path)

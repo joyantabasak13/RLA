@@ -4,6 +4,9 @@
         "iosfwd": "cpp",
         "vector": "cpp",
         "string": "cpp",
-        "ostream": "cpp"
+        "ostream": "cpp",
+        "unordered_set": "cpp",
+        "set": "cpp",
+        "unordered_map": "cpp"
     }
 }

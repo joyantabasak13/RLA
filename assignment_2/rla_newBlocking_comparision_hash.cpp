@@ -7,10 +7,12 @@
 #include <cstdlib>
 #include <chrono>
 #include <set>
+#include <unordered_set>
 #include <tuple>
 #include <utility>
 #include <algorithm>
 #include <map>
+#include <unordered_map>
 #include <boost/algorithm/string.hpp>
 #include <boost/foreach.hpp>
 
@@ -27,7 +29,7 @@ vector<int> blockfieldArr;
 // vector<string> uniqueblockfieldArr;
 vector<set<int> > block_list;
 vector<vector<int> > exactmatches;
-map<int, vector<int> > approxConnectedComponents;
+unordered_map<int, vector<int> > approxConnectedComponents;
 vector<vector<int> > finalConnectedComponents;
 vector<string> vec1D;
 vector<vector<string> > vec2D;
@@ -38,6 +40,7 @@ vector<pair<int, string> > combinedData;
 
 vector<vector<int> > edgeArr;
 set<pair<int, int> > set_of_edges;
+unordered_map<int, int > set_of_comparisions;
 
 // helps edit distance calculation in calculateBasicED()
 int calculateBasicED2(string& str1, string& str2, int threshRem)
@@ -516,12 +519,15 @@ void generateEdgilist(set<int>& blockRowArr)
                 edge_pair.first = j_th_record_id;
                 edge_pair.second = i_th_record_id;
             }
-
-            if (!set_of_edges.count(edge_pair)) {
-                if (isLinkageOk(dataArr[i], dataArr[j], 1)) {
-                    set_of_edges.insert(edge_pair);
-                }
-            }
+			long long int key = i_th_record_id + (j_th_record_id*totalUniqueRecords); 
+			if (!set_of_comparisions.count(key)) {
+				// if (!set_of_edges.count(edge_pair)) {
+				if (isLinkageOk(dataArr[i], dataArr[j], 1)) {
+					set_of_edges.insert(edge_pair);
+				}
+				set_of_comparisions[key] = 1;
+            	// }
+			}
         }
         
 	}
@@ -716,6 +722,7 @@ void writeFinalConnectedComponentToFile(string& result_file_name) {
 
 
 int main(int argc, char** argv) {
+	cout<< "Normal blocking Comparision Hash" << endl;
     // string filePath = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/";
     string filePath = "/home/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/";
     string fileName = argv[1];
@@ -739,7 +746,7 @@ int main(int argc, char** argv) {
     cout<< "My Exact Clustering time "<< findingExact_t << endl;
 
 	clock_t currTS3_1	= clock();
-	//doSortedComp();
+	// doSortedComp();
 	double sortingComp_t	= (double)(clock() - currTS3_1) / CLOCKS_PER_SEC;
 	cout<< "Sorting and Comparision time "<< sortingComp_t << endl;
     
@@ -754,7 +761,7 @@ int main(int argc, char** argv) {
     //doSuperBlocking();
 	doNormalBlocking();
     double blocking_t	= (double)(clock() - currTS4) / CLOCKS_PER_SEC;
-    cout<< "Normal Blocking time "<< blocking_t << endl;
+    cout<< "Super Blocking time "<< blocking_t << endl;
 
     clock_t currTS5	= clock();
     createClusterEdgeList();
@@ -776,12 +783,13 @@ int main(int argc, char** argv) {
 
     //count number of pairs compared
 	long long int total_comp = 0;
-	for (size_t i = 0; i < block_list.size(); i++)
-	{
-		int cur_size = block_list[i].size();
-		int cur_comp = (int)((cur_size * (cur_size - 1)) / 2);
-		total_comp += cur_comp;
-	}
+	// for (size_t i = 0; i < block_list.size(); i++)
+	// {
+	// 	int cur_size = block_list[i].size();
+	// 	int cur_comp = (int)((cur_size * (cur_size - 1)) / 2);
+	// 	total_comp += cur_comp;
+	// }
+	total_comp = set_of_comparisions.size();
 	long long int tot_possible_com = (vec2D.size()*(vec2D.size() - 1))/2 ;
 	
 	cout << "Number of Possible comparison: " << tot_possible_com << endl;
@@ -792,9 +800,9 @@ int main(int argc, char** argv) {
 
     // string out_file_path = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/data/";
     string out_file_path = "/home/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/data/";
-	string out_name1 = out_file_path + "out_single_linkage_"+ fileName + "_normal_blocking";
-	string out_name2 = out_file_path + "out_complete_linkage_"+ fileName + "_normal_blocking";
-	string stat_file_name = "stat_"+ fileName + "_normal_blocking";
+	string out_name1 = out_file_path + "out_single_linkage_"+ fileName + "_normal_blocking_comparision_hash";
+	string out_name2 = out_file_path + "out_complete_linkage_"+ fileName + "_normal_blocking_comparision_hash";
+	string stat_file_name = "stat_"+ fileName + "_normal_blocking_comparision_hash";
 
 	writeFinalConnectedComponentToFile(out_name2);
 
