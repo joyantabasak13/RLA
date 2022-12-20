@@ -4,18 +4,18 @@
 
 # g++ -std=c++17 -O3 -I /usr/local/boost_1_80_0/ -o scratchpad scratchpad.cpp
 
-g++ -std=c++17 -O3 -I /usr/local/boost_1_80_0/ -o rla_newBlocking rla_newBlocking.cpp
+g++ -std=c++17 -O3 -I /usr/local/boost_1_80_0/ -o rla_newParallelBlocking rla_newParallelBlocking.cpp
 
-./rla_newBlocking ds1_50k
+# ./rla_newParallelBlocking ds1_50k
 
-./rla_newBlocking ds2_100k
+# ./rla_newBlocking ds2_100k
 
-./rla_newBlocking ds3_200k
+# ./rla_newBlocking ds3_200k
 
-./rla_newBlocking ds4_400k
+# ./rla_newBlocking ds4_400k
 
-./rla_newBlocking ds5_600k
+# ./rla_newBlocking ds5_600k
 
-./rla_newBlocking ds6_800k
+# ./rla_newBlocking ds6_800k
 
-./rla_newBlocking ds7_1M
+./rla_newParallelBlocking ds7_1M
