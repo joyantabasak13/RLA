@@ -6,7 +6,7 @@
 
 g++ -std=c++17 -O3 -I /usr/local/boost_1_80_0/ -o rla_newParallelBlocking rla_newParallelBlocking.cpp
 
-# ./rla_newParallelBlocking ds1_50k
+./rla_newParallelBlocking ds1_50k
 
 # ./rla_newBlocking ds2_100k
 
@@ -18,4 +18,4 @@ g++ -std=c++17 -O3 -I /usr/local/boost_1_80_0/ -o rla_newParallelBlocking rla_ne
 
 # ./rla_newBlocking ds6_800k
 
-./rla_newParallelBlocking ds7_1M
+# ./rla_newParallelBlocking ds7_1M

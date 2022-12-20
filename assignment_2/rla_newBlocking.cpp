@@ -395,8 +395,8 @@ void doNormalBlocking() {
 
 	for (int i = 0; i < totalUniqueRecords; i++)
 	{
-		string blockingStr = vec1D[uniqueRecords[i].first*attributes + 1];
-        // string blockingStr = vec2D[uniqueRecords[i].first][1];
+		string blockingStr = vec1D[uniqueRecords[i].first*attributes + 1] + vec1D[uniqueRecords[i].first*attributes + 2];
+		// string blockingStr = vec2D[uniqueRecords[i].first][1];
         total_str_size += blockingStr.size();
         // cout<< i << "\t" << blockingStr << "\t" << blockingStr.size() << endl;
 		for (int j = 0; j < blockingStr.size() - kmer + 1 ; ++j)
@@ -435,7 +435,7 @@ void doSuperBlocking() {
 
 	for (int i = 0; i < totalUniqueRecords; i++)
 	{
-		string blockingStr = vec1D[uniqueRecords[i].first*attributes + 1];
+		string blockingStr = vec1D[uniqueRecords[i].first*attributes + 1] + vec1D[uniqueRecords[i].first*attributes + 2];
         // string blockingStr = vec2D[uniqueRecords[i].first][1];
         total_str_size += blockingStr.size();
         // cout<< i << "\t" << blockingStr << "\t" << blockingStr.size() << endl;
@@ -716,8 +716,8 @@ void writeFinalConnectedComponentToFile(string& result_file_name) {
 
 
 int main(int argc, char** argv) {
-    // string filePath = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/";
-    string filePath = "/home/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/";
+    string filePath = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/";
+    // string filePath = "/home/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/";
     string fileName = argv[1];
     filePath = filePath + argv[1];
     getFormattedDataFromCSV(filePath);
@@ -790,8 +790,8 @@ int main(int argc, char** argv) {
 	cout<< "Total Approximately Connected Components: " << approxConnectedComponents.size()<< endl;
 	cout<< "Total Final Connected Components: " << finalConnectedComponents.size() << endl;
 
-    // string out_file_path = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/data/";
-    string out_file_path = "/home/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/data/";
+    string out_file_path = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/data/";
+    // string out_file_path = "/home/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/data/";
 	string out_name1 = out_file_path + "out_single_linkage_"+ fileName + "_normal_blocking";
 	string out_name2 = out_file_path + "out_complete_linkage_"+ fileName + "_normal_blocking";
 	string stat_file_name = "stat_"+ fileName + "_normal_blocking";

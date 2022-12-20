@@ -24,10 +24,12 @@ int totalRecords = 50000;
 int lenMax;
 int totalUniqueRecords;
 int attributes;
+int base = 26;
+int kmer = 3;
+int blockIDRange = pow(base,kmer);
 int extraEdges = 0;
 int numThreads = 2;
 
-vector<int> blockfieldArr;
 vector<set<int> > block_list;
 vector<vector<int> > exactmatches;
 map<int, vector<int> > approxConnectedComponents;
@@ -38,6 +40,7 @@ vector<vector<int> > clusterExactIndArr;
 vector<pair<int,string> > uniqueRecords;
 vector<pair<int,string> > headlessCopies;
 vector<pair<int, string> > combinedData;
+vector<pair<int,int> > blockingIDList;
 vector<pair<int, int> > commonMSBIndices;
 vector<vector<int> > edgeArr;
 set<pair<int, int> > set_of_edges;
@@ -412,7 +415,7 @@ void getExactMatches() {
 	}
 	exactmatches.push_back(tempVec);
 	totalUniqueRecords = exactmatches.size();
-	cout << endl << "total exact clusters: " << totalUniqueRecords << endl;
+	cout << "total exact clusters: " << totalUniqueRecords << endl;
 }
 
 void getUniqueEntries() {
@@ -423,6 +426,58 @@ void getUniqueEntries() {
         uniqueRecords[i] = combinedData[exactmatches[i][0]];
         // cout<< uniqueRecords[i].first << "\t" << uniqueRecords[i].second << endl;
     }
+}
+
+int getKmerCount() {
+	long long int totalKmerCount = 0;
+	string blockingStr;
+	for (int i = 0; i < totalUniqueRecords; i++) {
+		totalKmerCount += vec1D[uniqueRecords[i].first*attributes + 1].size() - kmer + 1;
+	}
+	return totalKmerCount;
+}
+
+void getBlockingIDArray() {
+	int totalKMers = getKmerCount();
+	cout << "Total Kmers: " << totalKMers << endl;
+	blockingIDList.resize(totalKMers);
+	int ind = 0;
+	int blockID = 0;
+	int indATOrig = 0;
+	string blockingStr;
+	for (int i = 0; i < totalUniqueRecords; i++) {
+		indATOrig = uniqueRecords[i].first;
+		blockingStr = vec1D[indATOrig*attributes + 1];
+		for (int j = 0; j < blockingStr.size() - kmer + 1 ; ++j) {
+			blockID = 0;
+			for (int k = 0; k < kmer; ++k)
+			{
+				blockID += ((int)blockingStr[j+k] - 97) * pow(base,k);
+			}
+			blockingIDList[ind].first = blockID;
+			blockingIDList[ind].second = indATOrig;
+			ind++;
+		}
+	}
+}
+
+void sortBlockingIDArray() {
+	int numRecords = blockingIDList.size();
+	vector<pair<int, int>> tempArr(numRecords);
+	vector<int> countArr(blockIDRange, 0);
+
+	for (int j = 0; j < numRecords; ++j) {
+		countArr[blockingIDList[j].first]++;
+	}
+	// Do prefix sum
+	for (int k = 1; k < blockIDRange; ++k)
+		countArr[k]	+= countArr[k - 1];
+
+	for (int j = numRecords - 1; j >= 0; --j)
+		tempArr[--countArr[blockingIDList[j].first]]	= blockingIDList[j];
+	
+	for (int j = 0; j < numRecords; ++j)
+		blockingIDList[j]	= tempArr[j];
 }
 
 void doSortedComp() {
@@ -462,8 +517,6 @@ void doSortedComp() {
 }
 
 void doNormalBlocking() {
-	int base = 26;
-	int kmer = 3;
     int blockID = 0;
 	int total_blocked = 0;
     int unique_blocked = 0;
@@ -501,8 +554,6 @@ void doNormalBlocking() {
 }
 
 void doSuperBlocking() {
-	int base = 26;
-	int kmer = 3;
     int blockID = 0;
 	int total_blocked = 0;
     int unique_blocked = 0;
@@ -515,7 +566,7 @@ void doSuperBlocking() {
 
 	for (int i = 0; i < totalUniqueRecords; i++)
 	{
-		string blockingStr = vec1D[uniqueRecords[i].first*attributes + 1];
+		string blockingStr = vec1D[uniqueRecords[i].first*attributes + 1] + vec1D[uniqueRecords[i].first*attributes + 2];
         // string blockingStr = vec2D[uniqueRecords[i].first][1];
         total_str_size += blockingStr.size();
         // cout<< i << "\t" << blockingStr << "\t" << blockingStr.size() << endl;
@@ -823,12 +874,45 @@ int main(int argc, char** argv) {
 	totalRecords = vec2D.size();
 	getCombinedData();
 
+	// Sort the Combined Data
 	clock_t currTS_p0	= clock();
     radixSort(combinedData);
     double sorting_p0_t	= (double)(clock() - currTS_p0) / CLOCKS_PER_SEC;
     cout<< "Sorting time "<< sorting_p0_t << endl;
-	return 0;
+
+	// Get Unique Records
 	clock_t currTS_p1	= clock();
+	getExactMatches();
+    getUniqueEntries();
+	double exactClustering_p1_t	= (double)(clock() - currTS_p1) / CLOCKS_PER_SEC;
+    cout<< "De-duplication Time "<< exactClustering_p1_t << endl;
+
+	// Get Blocking ID Array
+	clock_t currTS_p2	= clock();
+	getBlockingIDArray();
+	double blockingArray_p2_t	= (double)(clock() - currTS_p2) / CLOCKS_PER_SEC;
+    cout<< "Getting Blocking Array Time "<< blockingArray_p2_t << endl;
+
+	// Get Sorted Blocking ID Array
+	clock_t currTS_p3	= clock();
+	sortBlockingIDArray();
+	double sortBlockingArray_p3_t	= (double)(clock() - currTS_p3) / CLOCKS_PER_SEC;
+    cout<< "Getting Sorted Blocking Array Time "<< sortBlockingArray_p3_t << endl;
+
+	// for (size_t i = 0; i < blockingIDList.size(); i++) {
+	// 	cout<< "BlockID: " << blockingIDList[i].first << "Name: "<< vec2D[blockingIDList[i].second][1] << endl;
+	// }
+
+	/** TODO:
+	 * 1. Remove redundant blocks (same kmer multiple times in same string)
+	 * 2. Load Balancing (based on squared block sizes)
+	 * 3. Implement per thread works
+	 * 4. Merge them and get output
+	 **/
+
+	
+	return 0;
+
 	radixSortMSB(combinedData);
 	getCommonMSBIndices(combinedData, commonMSBIndices);
 	balanced_partitions_combinedData.resize(numThreads);
@@ -851,9 +935,7 @@ int main(int argc, char** argv) {
 	{
 		pthread_join(threads[i], NULL);
 	}
-	double sorting_pt	= (double)(clock() - currTS_p1) / CLOCKS_PER_SEC;
-    cout<< "Sorting time "<< sorting_pt << endl;
-	return 0;
+	
 
     cout<< "Number of Records: " << vec2D.size() << endl;
 	cout<< "Number of Combined data pairs: "<< combinedData.size() << endl;
@@ -873,12 +955,6 @@ int main(int argc, char** argv) {
 	//doSortedComp();
 	double sortingComp_t	= (double)(clock() - currTS3_1) / CLOCKS_PER_SEC;
 	cout<< "Sorting and Comparision time "<< sortingComp_t << endl;
-    
-    // for (size_t i = 0; i < uniqueRecords.size(); i++)
-	// {
-    //     cout<< uniqueRecords[i].first << " " << uniqueRecords[i].second <<endl;
-    //     cout<< vec1D[uniqueRecords[i].first*attributes + 1] << endl;
-	// }
     
 
     clock_t currTS4	= clock();
