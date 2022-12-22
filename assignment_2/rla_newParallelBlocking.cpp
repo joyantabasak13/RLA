@@ -905,9 +905,16 @@ int main(int argc, char** argv) {
 
 	/** TODO:
 	 * 1. Remove redundant blocks (same kmer multiple times in same string)
+	 * 		-- Should be done in Main Thread
 	 * 2. Load Balancing (based on squared block sizes)
+	 * 		-- Dhould be done in main thread
 	 * 3. Implement per thread works
+	 * 		-- What will main thread do meanwhile?
 	 * 4. Merge them and get output
+	 * 		-- Do copy sorting (Superblocking only)
+	 * 		-- get edges only, merge them with master tree with redundency removed, 
+	 * 		-- find connected components
+	 * 		-- expand main cluster (maybe we can divide it too)
 	 **/
 
 	
