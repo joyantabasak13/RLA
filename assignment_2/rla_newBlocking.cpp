@@ -395,7 +395,7 @@ void doNormalBlocking() {
 
 	for (int i = 0; i < totalUniqueRecords; i++)
 	{
-		string blockingStr = vec1D[uniqueRecords[i].first*attributes + 1] + vec1D[uniqueRecords[i].first*attributes + 2];
+		string blockingStr = vec1D[uniqueRecords[i].first*attributes + 1];
 		// string blockingStr = vec2D[uniqueRecords[i].first][1];
         total_str_size += blockingStr.size();
         // cout<< i << "\t" << blockingStr << "\t" << blockingStr.size() << endl;
@@ -435,7 +435,7 @@ void doSuperBlocking() {
 
 	for (int i = 0; i < totalUniqueRecords; i++)
 	{
-		string blockingStr = vec1D[uniqueRecords[i].first*attributes + 1] + vec1D[uniqueRecords[i].first*attributes + 2];
+		string blockingStr = vec1D[uniqueRecords[i].first*attributes + 1];
         // string blockingStr = vec2D[uniqueRecords[i].first][1];
         total_str_size += blockingStr.size();
         // cout<< i << "\t" << blockingStr << "\t" << blockingStr.size() << endl;
@@ -742,13 +742,7 @@ int main(int argc, char** argv) {
 	//doSortedComp();
 	double sortingComp_t	= (double)(clock() - currTS3_1) / CLOCKS_PER_SEC;
 	cout<< "Sorting and Comparision time "<< sortingComp_t << endl;
-    
-    // for (size_t i = 0; i < uniqueRecords.size(); i++)
-	// {
-    //     cout<< uniqueRecords[i].first << " " << uniqueRecords[i].second <<endl;
-    //     cout<< vec1D[uniqueRecords[i].first*attributes + 1] << endl;
-	// }
-    
+
 
     clock_t currTS4	= clock();
     //doSuperBlocking();

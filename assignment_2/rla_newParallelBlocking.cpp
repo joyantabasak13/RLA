@@ -23,12 +23,16 @@ int threshold = 99;
 int totalRecords = 50000;
 int lenMax;
 int totalUniqueRecords;
+int totalUniqueBlocks;
+int totalBlockedKmers;
 int attributes;
 int base = 26;
 int kmer = 3;
 int blockIDRange = pow(base,kmer);
 int extraEdges = 0;
 int numThreads = 2;
+
+long long int totalCompRequired;
 
 vector<set<int> > block_list;
 vector<vector<int> > exactmatches;
@@ -41,7 +45,8 @@ vector<pair<int,string> > uniqueRecords;
 vector<pair<int,string> > headlessCopies;
 vector<pair<int, string> > combinedData;
 vector<pair<int,int> > blockingIDList;
-vector<pair<int, int> > commonMSBIndices;
+vector<pair<int, int>> boundaryArr;
+vector<vector<pair<int, int>>> assignedBlocklists;
 vector<vector<int> > edgeArr;
 set<pair<int, int> > set_of_edges;
 vector<vector <pair<int, int> > > balanced_partitions_combinedData;
@@ -314,82 +319,6 @@ void radixSort(vector<pair<int, string> > &strDataArr){
 	}
 }
 
-void radixSortMSB(vector<pair<int, string> > &strDataArr){
-	int numRecords = strDataArr.size();
-	vector<pair<int, string>> tempArr(numRecords);
-
-	vector<int> countArr(256, 0);
-	
-	for (int j = 0; j < numRecords; ++j)
-		countArr[(strDataArr[j].second)[0]]++;
-
-	
-	for (int k = 1; k < 256; ++k)
-		countArr[k]	+= countArr[k - 1];
-	
-	for (int j = numRecords - 1; j >= 0; --j)
-		tempArr[--countArr[(strDataArr[j].second)[0]]]	= strDataArr[j];
-	
-	for (int j = 0; j < numRecords; ++j)
-		strDataArr[j]	= tempArr[j];
-}
-
-void getCommonMSBIndices(vector<pair<int, string> > &strData, vector<pair<int, int> > &commonMSBInd){
-	int start = 0;
-	char cur_c;
-	char msb = strData[1].second[0];
-	pair<int, int> p;
-
-	for (int i = 1; i < strData.size(); i++)
-	{
-		cur_c = strData[i].second[0];
-		if (msb != cur_c) {
-			p.first = start;
-			p.second = i;
-			commonMSBInd.push_back(p);
-			start = i;
-			msb = cur_c;
-		}
-	}
-	p.first = start;
-	p.second = strData.size();
-	commonMSBInd.push_back(p);
-}
-
-int getLowestInd(int values[]) {
-	int lowestInd = 0;
-	int lowest = INT_MAX; 
-	for (int i = 0; i < numThreads; i++)
-	{
-		if (values[i] < lowest)
-		{
-			lowestInd = i;
-			lowest = values[i];
-		}
-	}
-	return lowestInd;
-}
-
-void getBalancedPartition(vector<pair<int, int> > &commonMSBInd, vector<vector<pair<int, int> > > &balanced_partition) {
-	int partition_sum[numThreads];
-	int lowestInd = 0;
-	for (int i = 0; i < numThreads; i++)
-	{
-		partition_sum[i] = 0;
-	}
-	for (int i = 0; i < commonMSBInd.size(); i++)
-	{
-		lowestInd = getLowestInd(partition_sum);
-		balanced_partition[lowestInd].push_back(commonMSBInd[i]);
-		partition_sum[lowestInd] += (commonMSBInd[i].second - commonMSBInd[i].first);
-	}
-	for (int i = 0; i < numThreads; i++)
-	{
-		cout<<"Partition "<< i << " has :" << partition_sum[i] << " Records" << endl;
-		cout<<"Partition "<< i << " has :" << balanced_partition[i].size() << " superblocks" << endl;
-	}
-}
-
 void printSortedRecords() {
     for (int i =0; i< combinedData.size(); i++) {
         if ((combinedData[i].second[0] == 'p') && (combinedData[i].second[1]== 'a')){
@@ -474,10 +403,107 @@ void sortBlockingIDArray() {
 		countArr[k]	+= countArr[k - 1];
 
 	for (int j = numRecords - 1; j >= 0; --j)
-		tempArr[--countArr[blockingIDList[j].first]]	= blockingIDList[j];
+		tempArr[--countArr[blockingIDList[j].first]] = blockingIDList[j];
 	
 	for (int j = 0; j < numRecords; ++j)
-		blockingIDList[j]	= tempArr[j];
+		blockingIDList[j] = tempArr[j];
+}
+
+void removeRedundentBlockingID() {
+	int numRecords = blockingIDList.size();
+	vector<pair<int, int>> tempArr;
+	totalUniqueBlocks = 1;
+	int copy_count = 1;
+	tempArr.push_back(blockingIDList[0]);
+	for (int i = 1; i<numRecords; i++) {
+		if (blockingIDList[i].first != blockingIDList[i-1].first) {
+			totalUniqueBlocks++;
+		}
+		if ( ! ((blockingIDList[i].first == blockingIDList[i-1].first) && (blockingIDList[i].second == blockingIDList[i-1].second))) {
+			tempArr.push_back(blockingIDList[i]);
+			copy_count++;
+		}
+	}
+	totalBlockedKmers = copy_count;
+	blockingIDList = tempArr;
+	cout << "Total Length: "<< numRecords << " total copies: "<< copy_count << " Total Unique Blocks: "<< totalUniqueBlocks << endl;
+}
+
+void findBlockBoundaries() {
+	//just keep starting ind and range.
+	boundaryArr.resize(totalUniqueBlocks);
+	int numRecords = blockingIDList.size();
+	totalCompRequired = 0;
+	int startInd = 0;
+	int range = 0;
+	int curBlockInd = 0;
+	for (int i = 1; i<numRecords; i++) {
+		if (blockingIDList[i].first != blockingIDList[i-1].first) {
+			range = i-startInd;
+			boundaryArr[curBlockInd].first = startInd;
+			boundaryArr[curBlockInd].second = range;
+			totalCompRequired = totalCompRequired + pow(range,2);
+			curBlockInd++;
+			startInd = i;
+		}
+	}
+	// Enter last Block info
+	range = numRecords-startInd;
+	totalCompRequired = totalCompRequired + pow(range,2);
+	boundaryArr[curBlockInd].first = startInd;
+	boundaryArr[curBlockInd].second = range;
+	curBlockInd++;
+	cout<< "Total Unique blocks found: " << curBlockInd << endl;
+}
+
+void sortByBlockSizes() {
+	std::sort(boundaryArr.begin(), boundaryArr.end(), [](auto &left, auto &right) {
+    	return left.second < right.second;
+	});
+}
+
+void findBlockAssignments() {
+	assignedBlocklists.resize(numThreads);
+	int threshold = (int)(totalCompRequired/numThreads);
+	long long int curAssignmentSize = 0;
+	int lastInd = boundaryArr.size();
+	int startInd = -1;
+ 
+	for(int i=0; i<numThreads; i++) {
+		curAssignmentSize = 0;
+		//cout<< "Thread: "<< i << " was assigned: " << curAssignmentSize << " comparisions where threshold is: " << threshold << endl;
+		for (int j = lastInd-1; j > startInd; j--)
+		{
+			//cout<< "SegFault for j " << j << endl;
+			long long int curBlockSize = pow(boundaryArr[j].second,2);
+			if ((curAssignmentSize+curBlockSize) < threshold) {
+				assignedBlocklists[i].push_back(boundaryArr[j]);
+				curAssignmentSize = curAssignmentSize + curBlockSize;
+				lastInd = j;
+			} else {
+				break;
+			}
+		}
+		// cout<< "Thread: "<< i << " was assigned: " << curAssignmentSize << " comparisions where threshold is: " << threshold << endl;
+		if (curAssignmentSize < threshold) {
+			for(int j = startInd+1; j<lastInd; j++) {
+				if (curAssignmentSize < threshold) {
+					assignedBlocklists[i].push_back(boundaryArr[j]);
+					curAssignmentSize = curAssignmentSize + pow(boundaryArr[j].second,2);
+					startInd = j;
+				} else {
+					break;
+				}
+			}
+		}
+		cout<< "Thread: "<< i << " was assigned: " << curAssignmentSize << " comparisions where threshold is: " << threshold << endl;
+	}
+	cout<< "Start ind: " << startInd << " last ind " << lastInd << endl; 
+	if (lastInd - startInd > 1) {
+		for (int i = startInd + 1; i<lastInd; i++) {
+			assignedBlocklists[i%numThreads].push_back(boundaryArr[i]);
+		}
+	}
 }
 
 void doSortedComp() {
@@ -854,14 +880,17 @@ void getPartialData(vector<pair<int, string> > &strData, vector<pair<int, int> >
 }
 // main function for threads
 void *threadDriver(void* ptr) {
-	vector<pair<int, int> > partitions = *static_cast<vector<pair<int, int> >*> (ptr);
-	vector<pair<int, string> > partialCombinedData;
-	getPartialData(partialCombinedData, partitions);
-	cout<< "[t] Total Records" <<partialCombinedData.size()<<endl;
-	radixSort(partialCombinedData);
+	int threadID = *static_cast<int*>(ptr);
+	// vector<pair<int, int> > partitions = *static_cast<vector<pair<int, int> >*> (ptr);
+	// vector<pair<int, string> > partialCombinedData;
+	// getPartialData(partialCombinedData, partitions);
+	// cout<< "[t] Total Records" <<partialCombinedData.size()<<endl;
+	// radixSort(partialCombinedData);
 	// for(int i=0; i<partialCombinedData.size();i++) {
 	// 	cout<< partialCombinedData[i].second<< endl;
 	// }
+	sleep(1000);
+	cout<< "Thread: " << threadID << endl;
 	return 0;
 }
 
@@ -899,15 +928,34 @@ int main(int argc, char** argv) {
 	double sortBlockingArray_p3_t	= (double)(clock() - currTS_p3) / CLOCKS_PER_SEC;
     cout<< "Getting Sorted Blocking Array Time "<< sortBlockingArray_p3_t << endl;
 
-	// for (size_t i = 0; i < blockingIDList.size(); i++) {
-	// 	cout<< "BlockID: " << blockingIDList[i].first << "Name: "<< vec2D[blockingIDList[i].second][1] << endl;
-	// }
+	clock_t currTS_p4	= clock();
+	removeRedundentBlockingID();
+	// findBlockBoundaries() and sortByBlockSizes() can be merged. But might not get much speedup.
+	findBlockBoundaries();
+	sortByBlockSizes();
+	findBlockAssignments();
+	double loadBalancing_p4_t	= (double)(clock() - currTS_p4) / CLOCKS_PER_SEC;
+    cout<< "Get Load Balancing Time "<< loadBalancing_p4_t << endl;
+
+	// Thread testing
+	pthread_t threads[numThreads];
+
+	clock_t currTS_p5	= clock();
+	for (int i = 0; i < numThreads; i++)
+	{
+		// msg[i] = "Thread "+ to_string(i);
+		int iret = pthread_create(&threads[i], NULL, threadDriver, &i);
+	}
+	for (int i = 0; i < numThreads; i++)
+	{
+		pthread_join(threads[i], NULL);
+	}
+	double comparisionsDone_p4_t	= (double)(clock() - currTS_p5) / CLOCKS_PER_SEC;
+    cout<< "Get Camparision time done in threads Time "<< comparisionsDone_p4_t << endl;
+
+	return 0;
 
 	/** TODO:
-	 * 1. Remove redundant blocks (same kmer multiple times in same string)
-	 * 		-- Should be done in Main Thread
-	 * 2. Load Balancing (based on squared block sizes)
-	 * 		-- Dhould be done in main thread
 	 * 3. Implement per thread works
 	 * 		-- What will main thread do meanwhile?
 	 * 4. Merge them and get output
@@ -916,33 +964,11 @@ int main(int argc, char** argv) {
 	 * 		-- find connected components
 	 * 		-- expand main cluster (maybe we can divide it too)
 	 **/
-
 	
-	return 0;
 
-	radixSortMSB(combinedData);
-	getCommonMSBIndices(combinedData, commonMSBIndices);
-	balanced_partitions_combinedData.resize(numThreads);
-	getBalancedPartition(commonMSBIndices, balanced_partitions_combinedData);
-	// for (int i = 0; i < balanced_partitions_combinedData.size(); i++)
-	// {
-	// 	cout<< balanced_partitions_combinedData[i].size() << endl;
-	// }
 
-	// Thread testing
-	pthread_t threads[numThreads];
-	// string msg[numThreads];
 
-	for (int i = 0; i < numThreads; i++)
-	{
-		// msg[i] = "Thread "+ to_string(i);
-		int iret = pthread_create(&threads[i], NULL, threadDriver, &balanced_partitions_combinedData[i]);
-	}
-	for (int i = 0; i < numThreads; i++)
-	{
-		pthread_join(threads[i], NULL);
-	}
-	
+
 
     cout<< "Number of Records: " << vec2D.size() << endl;
 	cout<< "Number of Combined data pairs: "<< combinedData.size() << endl;
