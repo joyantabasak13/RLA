@@ -9,10 +9,13 @@
 #include <pthread.h>
 #include <set>
 #include <string>
+#include <sys/time.h>
 #include <tuple>
+#include <time.h>
 #include <unistd.h>
 #include <utility>
 #include <vector>
+#include <mutex> 
 
 #include <boost/algorithm/string.hpp>
 #include <boost/foreach.hpp>
@@ -20,7 +23,7 @@
 using namespace std;
 
 int threshold = 99;
-int totalRecords = 50000;
+int totalRecords;
 int lenMax;
 int totalUniqueRecords;
 int totalUniqueBlocks;
@@ -30,9 +33,9 @@ int base = 26;
 int kmer = 3;
 int blockIDRange = pow(base,kmer);
 int extraEdges = 0;
-int numThreads = 2;
-
+int numThreads = 4;
 long long int totalCompRequired;
+std::mutex mtx;
 
 vector<set<int> > block_list;
 vector<vector<int> > exactmatches;
@@ -49,7 +52,7 @@ vector<pair<int, int>> boundaryArr;
 vector<vector<pair<int, int>>> assignedBlocklists;
 vector<vector<int> > edgeArr;
 set<pair<int, int> > set_of_edges;
-vector<vector <pair<int, int> > > balanced_partitions_combinedData;
+vector<set<pair<int, int> >> sets_of_edges_t;
 
 // helps edit distance calculation in calculateBasicED()
 int calculateBasicED2(string& str1, string& str2, int threshRem)
@@ -372,11 +375,11 @@ void getBlockingIDArray() {
 	blockingIDList.resize(totalKMers);
 	int ind = 0;
 	int blockID = 0;
-	int indATOrig = 0;
+	int indATUnique = 0;
 	string blockingStr;
 	for (int i = 0; i < totalUniqueRecords; i++) {
-		indATOrig = uniqueRecords[i].first;
-		blockingStr = vec1D[indATOrig*attributes + 1];
+		indATUnique = i;
+		blockingStr = vec1D[uniqueRecords[i].first*attributes + 1];
 		for (int j = 0; j < blockingStr.size() - kmer + 1 ; ++j) {
 			blockID = 0;
 			for (int k = 0; k < kmer; ++k)
@@ -384,7 +387,7 @@ void getBlockingIDArray() {
 				blockID += ((int)blockingStr[j+k] - 97) * pow(base,k);
 			}
 			blockingIDList[ind].first = blockID;
-			blockingIDList[ind].second = indATOrig;
+			blockingIDList[ind].second = indATUnique;
 			ind++;
 		}
 	}
@@ -679,8 +682,7 @@ void generateEdgilist(set<int>& blockRowArr)
                     set_of_edges.insert(edge_pair);
                 }
             }
-        }
-        
+        }  
 	}
 
 	dataArr.clear();
@@ -871,26 +873,76 @@ void writeFinalConnectedComponentToFile(string& result_file_name) {
 	out_file.close();
 }
 
-void getPartialData(vector<pair<int, string> > &strData, vector<pair<int, int> > boundaries){
-	for(int i = 0; i<boundaries.size(); i++) {
-		for(int j=boundaries[i].first; j<boundaries[i].second; j++){
-			strData.push_back(combinedData[j]);
-		}
-	} 
+double getWallTime() {
+	struct timeval time;
+    if (gettimeofday(&time,NULL)){
+        //  Handle error
+        return 0;
+    }
+    return (double)time.tv_sec + (double)time.tv_usec * .000001;
 }
+
+void mergeEdges() {
+	for(int i= 0; i<numThreads; i++ ) {
+		BOOST_FOREACH(pair p, sets_of_edges_t[i]) {
+			if(!set_of_edges.count(p)) {
+				set_of_edges.insert(p);
+			}
+		}
+	}
+}
+
+void getBlockRecords(pair<int, int> &blockInfo, vector<pair<int, vector<string>>> &recordList) {
+	recordList.resize(blockInfo.second);
+	for (int i = 0; i < blockInfo.second; i++) {
+		recordList[i].first = blockingIDList[blockInfo.first+i].second;
+		recordList[i].second = vec2D[uniqueRecords[recordList[i].first].first];
+	}
+}
+
+void getEdgesFromBlockedRecords(int id, vector<pair<int, vector<string>>> blockRecords) {
+	for (int i = 0; i < blockRecords.size() - 1; i++)
+	{
+        for (int j = i+1; j < blockRecords.size(); j++)
+        {
+            pair<int, int> edge_pair;
+            int i_th_record_id = blockRecords[i].first;
+            int j_th_record_id = blockRecords[j].first;
+            if (i_th_record_id < j_th_record_id) {
+                edge_pair.first = i_th_record_id;
+                edge_pair.second = j_th_record_id;
+            } else {
+                edge_pair.first = j_th_record_id;
+                edge_pair.second = i_th_record_id;
+            }
+
+            if (!sets_of_edges_t[id].count(edge_pair)) {
+                if (isLinkageOk(blockRecords[i].second, blockRecords[j].second, 1)) {
+                    sets_of_edges_t[id].insert(edge_pair);
+                }
+            }
+        }  
+	}
+}
+
+void doNormalThreadedBlocking(int tID) {
+	cout<< "Doing Normal Blocking for Thread: " << tID << endl;
+	cout<< "Thread: "<< tID << " has " << assignedBlocklists[tID].size() << " blocks" << endl;
+	for(int i = 0; i< assignedBlocklists[tID].size(); i++) {
+		pair<int, int> block = assignedBlocklists[tID][i];
+		vector<pair<int, vector<string>>> blockRecords;
+		getBlockRecords(block, blockRecords);
+		getEdgesFromBlockedRecords(tID, blockRecords);
+	}
+	cout << "Thread "<< tID << " Total edges: "<< sets_of_edges_t[tID].size() << endl;
+}
+
 // main function for threads
 void *threadDriver(void* ptr) {
+	// int threadID = *static_cast<int*>(ptr);
 	int threadID = *static_cast<int*>(ptr);
-	// vector<pair<int, int> > partitions = *static_cast<vector<pair<int, int> >*> (ptr);
-	// vector<pair<int, string> > partialCombinedData;
-	// getPartialData(partialCombinedData, partitions);
-	// cout<< "[t] Total Records" <<partialCombinedData.size()<<endl;
-	// radixSort(partialCombinedData);
-	// for(int i=0; i<partialCombinedData.size();i++) {
-	// 	cout<< partialCombinedData[i].second<< endl;
-	// }
-	sleep(1000);
-	cout<< "Thread: " << threadID << endl;
+	cout<< "Thread: " << threadID << " Running" << endl;
+	doNormalThreadedBlocking(threadID);
 	return 0;
 }
 
@@ -905,6 +957,7 @@ int main(int argc, char** argv) {
 
 	// Sort the Combined Data
 	clock_t currTS_p0	= clock();
+	double currWallT_p0 = getWallTime();
     radixSort(combinedData);
     double sorting_p0_t	= (double)(clock() - currTS_p0) / CLOCKS_PER_SEC;
     cout<< "Sorting time "<< sorting_p0_t << endl;
@@ -937,104 +990,59 @@ int main(int argc, char** argv) {
 	double loadBalancing_p4_t	= (double)(clock() - currTS_p4) / CLOCKS_PER_SEC;
     cout<< "Get Load Balancing Time "<< loadBalancing_p4_t << endl;
 
-	// Thread testing
-	pthread_t threads[numThreads];
-
+	// Thread Working
+	sets_of_edges_t.resize(numThreads);
+	pthread_t threads[numThreads-1];
 	clock_t currTS_p5	= clock();
-	for (int i = 0; i < numThreads; i++)
+	double currWallT_p5 = getWallTime();
+	for (int i = 0; i < numThreads-1; i++)
 	{
-		// msg[i] = "Thread "+ to_string(i);
-		int iret = pthread_create(&threads[i], NULL, threadDriver, &i);
+		int threadID = static_cast<int>(i);
+		int iret = pthread_create(&threads[threadID], NULL, threadDriver, &threadID);
+		usleep(10);
 	}
-	for (int i = 0; i < numThreads; i++)
+
+	doNormalThreadedBlocking(numThreads-1);
+
+	for (int i = 0; i < numThreads-1; i++)
 	{
-		pthread_join(threads[i], NULL);
+		int threadID = i;
+		pthread_join(threads[threadID], NULL);
 	}
-	double comparisionsDone_p4_t	= (double)(clock() - currTS_p5) / CLOCKS_PER_SEC;
-    cout<< "Get Camparision time done in threads Time "<< comparisionsDone_p4_t << endl;
 
-	return 0;
+	double comparisionsDone_p5_t	= (double)(clock() - currTS_p5) / CLOCKS_PER_SEC;
+	double comparisionsDone_p5_Wt = getWallTime();
+    cout<< "Get Camparision time done in threads Processor Time "<< comparisionsDone_p5_t << endl;
+	cout<< "Get Camparision time done in threads Wall Time "<< (double)(comparisionsDone_p5_Wt - currWallT_p5) << endl;
 
-	/** TODO:
-	 * 3. Implement per thread works
-	 * 		-- What will main thread do meanwhile?
-	 * 4. Merge them and get output
-	 * 		-- Do copy sorting (Superblocking only)
-	 * 		-- get edges only, merge them with master tree with redundency removed, 
-	 * 		-- find connected components
-	 * 		-- expand main cluster (maybe we can divide it too)
-	 **/
-	
+	// Merge edges
+	clock_t currTS_p6	= clock();
+	mergeEdges();
+	double edgeMergingDone_p6_t	= (double)(clock() - currTS_p6) / CLOCKS_PER_SEC;
+	cout<< "Get edge Merging Time "<< edgeMergingDone_p6_t << endl;
+	cout<< "Total Edges: " << set_of_edges.size() << endl;
 
-
-
-
-
-    cout<< "Number of Records: " << vec2D.size() << endl;
-	cout<< "Number of Combined data pairs: "<< combinedData.size() << endl;
-
-    clock_t currTS1	= clock();
-    radixSort(combinedData);
-    double sorting_t	= (double)(clock() - currTS1) / CLOCKS_PER_SEC;
-    cout<< "Sorting time "<< sorting_t << endl;
-    // printSortedRecords();
-    clock_t currTS3	= clock();
-    getExactMatches();
-    getUniqueEntries();
-    double findingExact_t	= (double)(clock() - currTS3) / CLOCKS_PER_SEC;
-    cout<< "My Exact Clustering time "<< findingExact_t << endl;
-
-	clock_t currTS3_1	= clock();
-	//doSortedComp();
-	double sortingComp_t	= (double)(clock() - currTS3_1) / CLOCKS_PER_SEC;
-	cout<< "Sorting and Comparision time "<< sortingComp_t << endl;
-    
-
-    clock_t currTS4	= clock();
-    //doSuperBlocking();
-	doNormalBlocking();
-    double blocking_t	= (double)(clock() - currTS4) / CLOCKS_PER_SEC;
-    cout<< "Normal Blocking time "<< blocking_t << endl;
-
-    clock_t currTS5	= clock();
-    createClusterEdgeList();
-    double createEdges_t	= (double)(clock() - currTS5) / CLOCKS_PER_SEC;
-    cout<< "Edge list creation Time "<< createEdges_t << endl;
-    //printEdges();
-    clock_t currTS6	= clock();
+	// Find Connected components
+	clock_t currTS_p7	= clock();
     findConnComp();
-    double findComp_t	= (double)(clock() - currTS6) / CLOCKS_PER_SEC;
-    cout<< "Connected Comp Find Time "<< findComp_t << endl;
-    //printApproximateCluster();
-    clock_t currTS7	= clock();
+    double findComp_p7_t	= (double)(clock() - currTS_p7) / CLOCKS_PER_SEC;
+    cout<< "Connected Comp Find Time "<< findComp_p7_t << endl;
+    // // printApproximateCluster();
+    clock_t currTS_p8_t	= clock();
     findFinalConnectedComp(1);
-    double findFinalComp_t	= (double)(clock() - currTS7) / CLOCKS_PER_SEC;
+    double findFinalComp_t	= (double)(clock() - currTS_p8_t) / CLOCKS_PER_SEC;
     cout<< "Final Connected Comps Find Time "<< findFinalComp_t << endl;
-    //printFinalConnectedClusters();
-    double total_t	= (double)(clock() - currTS1) / CLOCKS_PER_SEC;
-    cout<< "Total run time "<< total_t << endl;
-
-    //count number of pairs compared
-	long long int total_comp = 0;
-	for (size_t i = 0; i < block_list.size(); i++)
-	{
-		int cur_size = block_list[i].size();
-		int cur_comp = (int)((cur_size * (cur_size - 1)) / 2);
-		total_comp += cur_comp;
-	}
-	long long int tot_possible_com = (vec2D.size()*(vec2D.size() - 1))/2 ;
-	
-	cout << "Number of Possible comparison: " << tot_possible_com << endl;
-	cout << "Total Comp. Done: "<< total_comp << endl;
-	cout << "Reduction Ratio:" << ((long double)total_comp / (long double) tot_possible_com) << endl; 
-	cout<< "Total Approximately Connected Components: " << approxConnectedComponents.size()<< endl;
-	cout<< "Total Final Connected Components: " << finalConnectedComponents.size() << endl;
+    // // printFinalConnectedClusters();
+    double total_t	= (double)(clock() - currTS_p0) / CLOCKS_PER_SEC;
+	cout<< "Total processor run time "<< total_t << endl;
+	double allDone_pX_Wt = getWallTime();
+	cout<< "Get Total Wall Time "<< (double)(allDone_pX_Wt - currWallT_p0) << endl;
 
     string out_file_path = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/data/";
     // string out_file_path = "/home/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/data/";
-	string out_name1 = out_file_path + "out_single_linkage_"+ fileName + "_normal_blocking";
-	string out_name2 = out_file_path + "out_complete_linkage_"+ fileName + "_normal_blocking";
-	string stat_file_name = "stat_"+ fileName + "_normal_blocking";
+	string out_name1 = out_file_path + "out_single_linkage_"+ fileName + "_parallel_normal_blocking";
+	string out_name2 = out_file_path + "out_complete_linkage_"+ fileName + "_parallel_normal_blocking";
+	string stat_file_name = "stat_"+ fileName + "_parallel_normal_blocking";
 
 	writeFinalConnectedComponentToFile(out_name2);
 
@@ -1042,20 +1050,14 @@ int main(int argc, char** argv) {
     ofstream stat_file;
 	stat_file.open(stat_file_path);
 	stat_file << "DataSize: "<< vec2D.size() << endl;
-	stat_file << "Number of Possible comparison: " << tot_possible_com << endl;
-	stat_file << "Number of pairs compared: " << total_comp  << endl;
-	stat_file << "Reduction Ratio:" << ((long double)total_comp / (long double) tot_possible_com) << endl;
+	// stat_file << "Number of Possible comparison: " << tot_possible_com << endl;
+	// stat_file << "Number of pairs compared: " << total_comp  << endl;
+	// stat_file << "Reduction Ratio:" << ((long double)total_comp / (long double) tot_possible_com) << endl;
 	stat_file << "Number of Edges: "<< set_of_edges.size() << endl;
 	stat_file << "Total Single Clusters: " << approxConnectedComponents.size()<< endl;
 	stat_file << "Total Complete Clusters " << finalConnectedComponents.size() << endl;
-	stat_file << "Total Time taken: " << total_t << " Seconds" << endl;
-	stat_file << "Sorting time: " << sorting_t << " Seconds" << endl;
-	stat_file << "Sorting with head removed and Comparison time: " << sortingComp_t << " Seconds" << endl;
-	stat_file << "Finding Exact Clusters time: " << findingExact_t << " Seconds" << endl;
-    stat_file << "Blocking time: " << blocking_t << " Seconds" << endl;
-    stat_file << "Edge generation Time: " << createEdges_t << " Seconds" << endl;
-    stat_file << "Find Approximate Clusters Time: " << findComp_t << " Seconds" << endl;
-    stat_file << "Find Final Clusters Time: " << findFinalComp_t << " Seconds" << endl;
+	stat_file << "Total Processor Time taken: " << total_t << " Seconds" << endl;
+	stat_file << "Total Wall Time Taken: " << (double)(allDone_pX_Wt - currWallT_p0) << " Seconds" << endl;
 	stat_file.close();
 
     return 0;

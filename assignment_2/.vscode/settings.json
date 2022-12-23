@@ -9,6 +9,7 @@
         "set": "cpp",
         "unordered_map": "cpp",
         "utility": "cpp",
-        "tuple": "cpp"
+        "tuple": "cpp",
+        "fstream": "cpp"
     }
 }

@@ -4,9 +4,11 @@
 
 # g++ -std=c++17 -O3 -I /usr/local/boost_1_80_0/ -o scratchpad scratchpad.cpp
 
-g++ -std=c++17 -O3 -I /usr/local/boost_1_80_0/ -o rla_newParallelBlocking rla_newParallelBlocking.cpp
+# g++ -std=c++17 -O3 -I /usr/local/boost_1_80_0/ -o rla_newParallelNormalBlocking rla_newParallelNormalBlocking.cpp
 
-./rla_newParallelBlocking ds1_50k
+g++ -std=c++17 -O3 -I /usr/local/boost_1_80_0/ -o rla_newParallelSuperBlocking rla_newParallelSuperBlocking.cpp
+
+./rla_newParallelSuperBlocking ds1_50k
 
 # ./rla_newBlocking ds2_100k
 
@@ -18,4 +20,4 @@ g++ -std=c++17 -O3 -I /usr/local/boost_1_80_0/ -o rla_newParallelBlocking rla_ne
 
 # ./rla_newBlocking ds6_800k
 
-# ./rla_newParallelBlocking ds7_1M
+# ./rla_newParallelNormalBlocking ds7_1M
