@@ -43,13 +43,13 @@ def get_data_and_write_csv(path1, path2, filename):
 
     df = pd.DataFrame(list(zip(ssn_list, first_name_list, last_name_list, dod_list, dob_list)),
                       columns=['SSN', 'FirstName', 'LastName', 'DoD', 'DoB'])
-    filename = filename + "ds11_5M"
+    filename = filename + "ds1_50k"
     df.to_csv(filename, index=False, header=False)
 
 
 ###### Main Func ######
 ###### This takes tab deliminated <SSN, FirstName, LastName, Dod, Dob> 2 files and merges to one with <SSN, Name, Dod, Dob>
-file_path_1 = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/19500671/ds11.1.1"
-file_path_2 = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/19500671/ds11.1.2"
-file_path_3 = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/"
+file_path_1 = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/19500671/ds1.1.1"
+file_path_2 = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/19500671/ds1.1.2"
+file_path_3 = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/firstName_LastName_DS/"
 get_data_and_write_csv(file_path_1, file_path_2, file_path_3)

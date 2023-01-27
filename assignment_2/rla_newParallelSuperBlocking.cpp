@@ -33,7 +33,7 @@ int base = 26;
 int kmer = 3;
 int blockIDRange = pow(base,kmer+1);
 int extraEdges = 0;
-int numThreads = 4;
+int numThreads = 1;
 long long int totalCompRequired;
 std::mutex mtx;
 
@@ -546,82 +546,6 @@ void doSortedComp() {
 		}
 	}
 	cout<< "Edges Added: "<< extraEdges << endl;
-}
-
-void doNormalBlocking() {
-    int blockID = 0;
-	int total_blocked = 0;
-    int unique_blocked = 0;
-    int total_str_size = 0;
-	int blockTotal = pow(base,kmer);
-	block_list.resize(blockTotal);
-
-	cout<< "Total unique records: " << totalUniqueRecords << endl;
-
-	for (int i = 0; i < totalUniqueRecords; i++)
-	{
-		string blockingStr = vec1D[uniqueRecords[i].first*attributes + 1];
-        // string blockingStr = vec2D[uniqueRecords[i].first][1];
-        total_str_size += blockingStr.size();
-        // cout<< i << "\t" << blockingStr << "\t" << blockingStr.size() << endl;
-		for (int j = 0; j < blockingStr.size() - kmer + 1 ; ++j)
-		{
-			blockID = 0;
-
-			for (int k = 0; k < kmer; ++k)
-			{
-				blockID += ((int)blockingStr[j+k] - 97) * pow(base,k);
-			}
-			if(!block_list[blockID].count(i)){
-                block_list[blockID].insert(i);
-                unique_blocked++;
-            }
-			total_blocked++;
-		}
-	}
-	cout<< "Total blocked: " << total_blocked << endl;
-    cout<< "Uniquely blocked: " << unique_blocked << endl;
-    cout<< "Total string size covered: " << total_str_size << endl;
-    cout<< "Expected blocks:" << total_str_size - (kmer-1)*totalUniqueRecords << endl;
-}
-
-void doSuperBlocking() {
-    int blockID = 0;
-	int total_blocked = 0;
-    int unique_blocked = 0;
-    int total_str_size = 0;
-	int perAplhaBlocks = pow(base,kmer);
-	int blockTotal = base * perAplhaBlocks;
-	block_list.resize(blockTotal);
-
-	cout<< "Total unique records: " << totalUniqueRecords << endl;
-
-	for (int i = 0; i < totalUniqueRecords; i++)
-	{
-		string blockingStr = vec1D[uniqueRecords[i].first*attributes + 1] + vec1D[uniqueRecords[i].first*attributes + 2];
-        // string blockingStr = vec2D[uniqueRecords[i].first][1];
-        total_str_size += blockingStr.size();
-        // cout<< i << "\t" << blockingStr << "\t" << blockingStr.size() << endl;
-		for (int j = 0; j < blockingStr.size() - kmer + 1 ; ++j)
-		{
-			blockID = 0;
-
-			for (int k = 0; k < kmer; ++k)
-			{
-				blockID += ((int)blockingStr[j+k] - 97) * pow(base,k);
-			}
-			blockID = (blockingStr[0]-97)*perAplhaBlocks + blockID;
-			if(!block_list[blockID].count(i)){
-                block_list[blockID].insert(i);
-                unique_blocked++;
-            }
-			total_blocked++;
-		}
-	}
-	cout<< "Total blocked: " << total_blocked << endl;
-    cout<< "Uniquely blocked: " << unique_blocked << endl;
-    cout<< "Total string size covered: " << total_str_size << endl;
-    cout<< "Expected blocks:" << total_str_size - (kmer-1)*totalUniqueRecords << endl;
 }
 
 bool isLinkageOk(vector<string> &a, vector<string> &b, int threshold)

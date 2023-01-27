@@ -21,6 +21,7 @@ int totalRecords = 50000;
 int lenMax;
 int totalUniqueRecords;
 int attributes;
+int targetAttribute;
 int extraEdges = 0;
 
 vector<int> blockfieldArr;
@@ -216,7 +217,7 @@ int calculateBasicED(string& str1, string& str2, int threshRem)
 void getFormattedDataFromCSV(string& file_path) {
     string line;
     ifstream records(file_path);
-
+	cout<< "reading data" << endl;
     int ind = 0;
     while (getline (records, line)) {
 		// cout<< line << endl;
@@ -231,34 +232,27 @@ void getFormattedDataFromCSV(string& file_path) {
     								});
 		result[1].erase(last, result[1].end()); //Remove junk left by remove_if() at the end of iterator
         boost::to_lower(result[1]);
-		vec.push_back(result[1]);
+		auto first = std::remove_if(result[2].begin(), result[2].end(), [](auto ch) {
+        								return ::isdigit(ch) || ::ispunct(ch) || ::iswpunct(ch);
+    								});
+		result[2].erase(first, result[2].end()); //Remove junk left by remove_if() at the end of iterator
+        boost::to_lower(result[2]);
 		vec.push_back(result[2]);
+		vec.push_back(result[1]);
 		vec.push_back(result[3]);
+		vec.push_back(result[4]);
         vec2D.push_back(vec);
     }
     records.close();
-    // vector<vector<string>> temp2D;
-
-    // temp2D.resize(vec2D[0].size(), vec2D.size());
-    // temp2D.resize(vec2D[0].size());
-    // for (int i = 0; i < vec2D[0].size(); ++i) temp2D[i].resize(vec2D.size());
 
     vec1D.resize(vec2D[0].size()*vec2D.size());
 
-
-    // for (size_t i = 0; i < vec2D.size(); i++)
-    // {
-    //     for(size_t j = 0; j< vec2D[0].size(); j++) {
-    //         temp2D[j][i] = vec2D[i][j];
-    //     }
-    // }
     for (size_t i = 0; i < vec2D.size(); i++)
     {
         for(size_t j = 0; j< vec2D[0].size(); j++) {
             vec1D[i*vec2D[0].size()+j] = vec2D[i][j];
         }
     }
-    //vec2D = temp2D;
     attributes = vec2D[0].size();
     cout<< "Attributes: "<<attributes << endl;
 }
@@ -270,7 +264,11 @@ void getCombinedData() {
 	for (int i = 0; i< vec2D.size(); i++) {
 		pair<int, string> p;
 		p.first = i;
-		p.second = vec2D[i][1] + vec2D[i][2] + vec2D[i][3];
+		string s = "";
+		for(int j = 1; j<attributes; j++){
+			s = s+ vec2D[i][j];
+		}
+		p.second = s;
 		combinedData[i]=p;
 		if (max<p.second.size()) {
 			max = p.second.size();
@@ -395,7 +393,11 @@ void doNormalBlocking() {
 
 	for (int i = 0; i < totalUniqueRecords; i++)
 	{
-		string blockingStr = vec1D[uniqueRecords[i].first*attributes + 1];
+		string blockingStr = vec1D[uniqueRecords[i].first*attributes + targetAttribute];
+		string temp_str = vec1D[uniqueRecords[i].first*attributes + targetAttribute];
+		while(blockingStr.size() < kmer) {
+			blockingStr = blockingStr + temp_str;
+		}
 		// string blockingStr = vec2D[uniqueRecords[i].first][1];
         total_str_size += blockingStr.size();
         // cout<< i << "\t" << blockingStr << "\t" << blockingStr.size() << endl;
@@ -435,8 +437,12 @@ void doSuperBlocking() {
 
 	for (int i = 0; i < totalUniqueRecords; i++)
 	{
-		string blockingStr = vec1D[uniqueRecords[i].first*attributes + 1];
+		string blockingStr = vec1D[uniqueRecords[i].first*attributes + targetAttribute];
+		string temp_str = vec1D[uniqueRecords[i].first*attributes + targetAttribute];
         // string blockingStr = vec2D[uniqueRecords[i].first][1];
+		while(blockingStr.size() < kmer) {
+			blockingStr = blockingStr + temp_str;
+		}
         total_str_size += blockingStr.size();
         // cout<< i << "\t" << blockingStr << "\t" << blockingStr.size() << endl;
 		for (int j = 0; j < blockingStr.size() - kmer + 1 ; ++j)
@@ -461,7 +467,8 @@ void doSuperBlocking() {
     cout<< "Expected blocks:" << total_str_size - (kmer-1)*totalUniqueRecords << endl;
 }
 
-bool isLinkageOk(vector<string> &a, vector<string> &b, int threshold)
+// Remove later
+bool isLinkageOk_fullname_ds(vector<string> &a, vector<string> &b, int threshold)
 {
     //int dist = 0;
 	int name_dist = calculateBasicED(a[1], b[1], 1);
@@ -481,6 +488,40 @@ bool isLinkageOk(vector<string> &a, vector<string> &b, int threshold)
             } else {
                 return false;
             }
+        } else {
+            return false;
+        }
+    } else {
+        return false;
+    }
+}
+
+// WHY NOT Adding the distances ??
+bool isLinkageOk(vector<string> &a, vector<string> &b, int threshold)
+{
+    //int dist = 0;
+	int last_name_dist = calculateBasicED(a[1], b[1], 1);
+    //dist +=name_dist;
+    if (last_name_dist <= threshold) {
+		int first_name_dist = calculateBasicED(a[2], b[2], 1);
+		if (first_name_dist <= threshold) {	
+			int dod_dist = calculateBasicED(a[3], b[3], 1);
+			//dist+=dod_dist;   
+			if (dod_dist <= threshold) {
+				int dob_dist = calculateBasicED(a[4], b[4], 1);
+				//dist+=dod_dist;
+				// if(dist==0) {
+				//     //Self edge?
+				//     return false;
+				// }
+				if (dob_dist <= threshold) {
+					return true;
+				} else {
+					return false;
+				}
+			} else {
+				return false;
+			}
         } else {
             return false;
         }
@@ -716,13 +757,17 @@ void writeFinalConnectedComponentToFile(string& result_file_name) {
 
 
 int main(int argc, char** argv) {
-    string filePath = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/";
-    // string filePath = "/home/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/";
+    string filePath = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/firstName_LastName_DS/";
+    // string filePath = "/home/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/firstName_LastName_DS/";
     string fileName = argv[1];
     filePath = filePath + argv[1];
+	targetAttribute = 1;
+	cout<< "arguments read" << endl;
     getFormattedDataFromCSV(filePath);
+	cout<< "data read" << endl;
 	totalRecords = vec2D.size();
 	getCombinedData();
+	cout<< "combined data" << endl;
     
     cout<< "Number of Records: " << vec2D.size() << endl;
 	cout<< "Number of Combined data pairs: "<< combinedData.size() << endl;
@@ -739,16 +784,16 @@ int main(int argc, char** argv) {
     cout<< "My Exact Clustering time "<< findingExact_t << endl;
 
 	clock_t currTS3_1	= clock();
-	//doSortedComp();
+	doSortedComp();
 	double sortingComp_t	= (double)(clock() - currTS3_1) / CLOCKS_PER_SEC;
 	cout<< "Sorting and Comparision time "<< sortingComp_t << endl;
 
 
     clock_t currTS4	= clock();
-    //doSuperBlocking();
-	doNormalBlocking();
+    doSuperBlocking();
+	// doNormalBlocking();
     double blocking_t	= (double)(clock() - currTS4) / CLOCKS_PER_SEC;
-    cout<< "Normal Blocking time "<< blocking_t << endl;
+    cout<< "Super Blocking time "<< blocking_t << endl;
 
     clock_t currTS5	= clock();
     createClusterEdgeList();
@@ -786,9 +831,9 @@ int main(int argc, char** argv) {
 
     string out_file_path = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/data/";
     // string out_file_path = "/home/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/data/";
-	string out_name1 = out_file_path + "out_single_linkage_"+ fileName + "_normal_blocking";
-	string out_name2 = out_file_path + "out_complete_linkage_"+ fileName + "_normal_blocking";
-	string stat_file_name = "stat_"+ fileName + "_normal_blocking";
+	string out_name1 = out_file_path + "out_single_linkage_"+ fileName + "_super_blocking_firstName";
+	string out_name2 = out_file_path + "out_complete_linkage_"+ fileName + "_super_blocking_firstName";
+	string stat_file_name = "stat_"+ fileName + "_super_blocking_firstName";
 
 	writeFinalConnectedComponentToFile(out_name2);
 

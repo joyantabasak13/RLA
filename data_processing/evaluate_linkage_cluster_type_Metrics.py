@@ -174,7 +174,7 @@ def get_cluster_sizes(clusters):
 ### main ###
 
 # file_path = "/Users/joyanta/Downloads/output_edit_ds2.1.txtOutSingle"
-file_path = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/Server_results/run2_11Dec/out_complete_linkage_ds5_600k_normal_blocking"
+file_path = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/Server_results/server_results_january_20/out_complete_linkage_ds7_1M_super_blocking_lastName"
 
 ### Calculate Cluster Accuracy
 

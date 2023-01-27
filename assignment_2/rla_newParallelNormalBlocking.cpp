@@ -33,7 +33,7 @@ int base = 26;
 int kmer = 3;
 int blockIDRange = pow(base,kmer);
 int extraEdges = 0;
-int numThreads = 4;
+int numThreads = 6;
 long long int totalCompRequired;
 std::mutex mtx;
 
@@ -246,9 +246,16 @@ void getFormattedDataFromCSV(string& file_path) {
     								});
 		result[1].erase(last, result[1].end()); //Remove junk left by remove_if() at the end of iterator
         boost::to_lower(result[1]);
+		auto first = std::remove_if(result[2].begin(), result[2].end(), [](auto ch) {
+        								return ::isdigit(ch) || ::ispunct(ch) || ::iswpunct(ch);
+    								});
+		result[2].erase(first, result[2].end()); //Remove junk left by remove_if() at the end of iterator
+        boost::to_lower(result[2]);
+
 		vec.push_back(result[1]);
 		vec.push_back(result[2]);
 		vec.push_back(result[3]);
+		vec.push_back(result[4]);
         vec2D.push_back(vec);
     }
     records.close();
@@ -380,6 +387,10 @@ void getBlockingIDArray() {
 	for (int i = 0; i < totalUniqueRecords; i++) {
 		indATUnique = i;
 		blockingStr = vec1D[uniqueRecords[i].first*attributes + 1];
+		string temp_str = vec1D[uniqueRecords[i].first*attributes + 1];
+		while(blockingStr.size() < kmer) {
+			blockingStr = blockingStr + temp_str;
+		}
 		for (int j = 0; j < blockingStr.size() - kmer + 1 ; ++j) {
 			blockID = 0;
 			for (int k = 0; k < kmer; ++k)
@@ -467,7 +478,8 @@ void sortByBlockSizes() {
 
 void findBlockAssignments() {
 	assignedBlocklists.resize(numThreads);
-	int threshold = (int)(totalCompRequired/numThreads);
+	cout << "Total comp required: " << totalCompRequired << endl;
+	long long int threshold = (long long int)(totalCompRequired/numThreads);
 	long long int curAssignmentSize = 0;
 	int lastInd = boundaryArr.size();
 	int startInd = -1;
@@ -509,138 +521,61 @@ void findBlockAssignments() {
 	}
 }
 
-void doSortedComp() {
-	headlessCopies.resize(2*totalUniqueRecords);
-	for(int i=0; i< uniqueRecords.size(); i++) { 
-		headlessCopies[i].first = i;
-		headlessCopies[i].second = uniqueRecords[i].second;
-		headlessCopies[totalUniqueRecords+i].first = i;
-		headlessCopies[totalUniqueRecords+i].second = uniqueRecords[i].second.substr(1,uniqueRecords[i].second.size()-1) + '0';
-		// cout<< uniqueRecords[i].second << endl;
-		// cout<< headlessCopies[totalUniqueRecords+i].second << endl;
-	}
-	radixSort(headlessCopies);
-	for (int i = 1; i < headlessCopies.size(); i++) {
-		// cout<< headlessCopies[i].second << endl;
-		if (headlessCopies[i-1].second.compare(headlessCopies[i].second) == 0) {
-			// cout<< headlessCopies[i-1].first << " " << headlessCopies[i-1].second << endl;
-			// cout<< headlessCopies[i].first << " " << headlessCopies[i].second << endl;
-			pair<int, int> edge_pair;
-            int i_th_record_id = headlessCopies[i-1].first;
-            int j_th_record_id = headlessCopies[i].first;
-            if (i_th_record_id < j_th_record_id) {
-                edge_pair.first = i_th_record_id;
-                edge_pair.second = j_th_record_id;
-            } else {
-                edge_pair.first = j_th_record_id;
-                edge_pair.second = i_th_record_id;
-            }
-			
-            if (!set_of_edges.count(edge_pair)) {
-                set_of_edges.insert(edge_pair);
-				extraEdges++;
-            }
-		}
-	}
-	cout<< "Edges Added: "<< extraEdges << endl;
-}
+// bool isLinkageOk(vector<string> &a, vector<string> &b, int threshold)
+// {
+//     //int dist = 0;
+// 	int name_dist = calculateBasicED(a[1], b[1], 1);
+//     //dist +=name_dist;
+//     if (name_dist <= threshold) {
+//         int dod_dist = calculateBasicED(a[2], b[2], 1);
+//         //dist+=dod_dist;   
+//         if (dod_dist <= threshold) {
+//             int dob_dist = calculateBasicED(a[3], b[3], 1);
+//             //dist+=dod_dist;
+//             // if(dist==0) {
+//             //     //Self edge?
+//             //     return false;
+//             // }
+//             if (dob_dist <= threshold) {
+//                 return true;
+//             } else {
+//                 return false;
+//             }
+//         } else {
+//             return false;
+//         }
+//     } else {
+//         return false;
+//     }
+// }
 
-void doNormalBlocking() {
-    int blockID = 0;
-	int total_blocked = 0;
-    int unique_blocked = 0;
-    int total_str_size = 0;
-	int blockTotal = pow(base,kmer);
-	block_list.resize(blockTotal);
 
-	cout<< "Total unique records: " << totalUniqueRecords << endl;
-
-	for (int i = 0; i < totalUniqueRecords; i++)
-	{
-		string blockingStr = vec1D[uniqueRecords[i].first*attributes + 1];
-        // string blockingStr = vec2D[uniqueRecords[i].first][1];
-        total_str_size += blockingStr.size();
-        // cout<< i << "\t" << blockingStr << "\t" << blockingStr.size() << endl;
-		for (int j = 0; j < blockingStr.size() - kmer + 1 ; ++j)
-		{
-			blockID = 0;
-
-			for (int k = 0; k < kmer; ++k)
-			{
-				blockID += ((int)blockingStr[j+k] - 97) * pow(base,k);
-			}
-			if(!block_list[blockID].count(i)){
-                block_list[blockID].insert(i);
-                unique_blocked++;
-            }
-			total_blocked++;
-		}
-	}
-	cout<< "Total blocked: " << total_blocked << endl;
-    cout<< "Uniquely blocked: " << unique_blocked << endl;
-    cout<< "Total string size covered: " << total_str_size << endl;
-    cout<< "Expected blocks:" << total_str_size - (kmer-1)*totalUniqueRecords << endl;
-}
-
-void doSuperBlocking() {
-    int blockID = 0;
-	int total_blocked = 0;
-    int unique_blocked = 0;
-    int total_str_size = 0;
-	int perAplhaBlocks = pow(base,kmer);
-	int blockTotal = base * perAplhaBlocks;
-	block_list.resize(blockTotal);
-
-	cout<< "Total unique records: " << totalUniqueRecords << endl;
-
-	for (int i = 0; i < totalUniqueRecords; i++)
-	{
-		string blockingStr = vec1D[uniqueRecords[i].first*attributes + 1] + vec1D[uniqueRecords[i].first*attributes + 2];
-        // string blockingStr = vec2D[uniqueRecords[i].first][1];
-        total_str_size += blockingStr.size();
-        // cout<< i << "\t" << blockingStr << "\t" << blockingStr.size() << endl;
-		for (int j = 0; j < blockingStr.size() - kmer + 1 ; ++j)
-		{
-			blockID = 0;
-
-			for (int k = 0; k < kmer; ++k)
-			{
-				blockID += ((int)blockingStr[j+k] - 97) * pow(base,k);
-			}
-			blockID = (blockingStr[0]-97)*perAplhaBlocks + blockID;
-			if(!block_list[blockID].count(i)){
-                block_list[blockID].insert(i);
-                unique_blocked++;
-            }
-			total_blocked++;
-		}
-	}
-	cout<< "Total blocked: " << total_blocked << endl;
-    cout<< "Uniquely blocked: " << unique_blocked << endl;
-    cout<< "Total string size covered: " << total_str_size << endl;
-    cout<< "Expected blocks:" << total_str_size - (kmer-1)*totalUniqueRecords << endl;
-}
-
+// WHY NOT Adding the distances ??
 bool isLinkageOk(vector<string> &a, vector<string> &b, int threshold)
 {
     //int dist = 0;
-	int name_dist = calculateBasicED(a[1], b[1], 1);
+	int last_name_dist = calculateBasicED(a[1], b[1], 1);
     //dist +=name_dist;
-    if (name_dist <= threshold) {
-        int dod_dist = calculateBasicED(a[2], b[2], 1);
-        //dist+=dod_dist;   
-        if (dod_dist <= threshold) {
-            int dob_dist = calculateBasicED(a[3], b[3], 1);
-            //dist+=dod_dist;
-            // if(dist==0) {
-            //     //Self edge?
-            //     return false;
-            // }
-            if (dob_dist <= threshold) {
-                return true;
-            } else {
-                return false;
-            }
+    if (last_name_dist <= threshold) {
+		int first_name_dist = calculateBasicED(a[2], b[2], 1);
+		if (first_name_dist <= threshold) {	
+			int dod_dist = calculateBasicED(a[3], b[3], 1);
+			//dist+=dod_dist;   
+			if (dod_dist <= threshold) {
+				int dob_dist = calculateBasicED(a[4], b[4], 1);
+				//dist+=dod_dist;
+				// if(dist==0) {
+				//     //Self edge?
+				//     return false;
+				// }
+				if (dob_dist <= threshold) {
+					return true;
+				} else {
+					return false;
+				}
+			} else {
+				return false;
+			}
         } else {
             return false;
         }
@@ -947,8 +882,8 @@ void *threadDriver(void* ptr) {
 }
 
 int main(int argc, char** argv) {
-    string filePath = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/";
-    // string filePath = "/home/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/";
+    // string filePath = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/firstName_LastName_DS/";
+    string filePath = "/home/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/firstName_LastName_DS/";
     string fileName = argv[1];
     filePath = filePath + argv[1];
     getFormattedDataFromCSV(filePath);
@@ -989,7 +924,7 @@ int main(int argc, char** argv) {
 	findBlockAssignments();
 	double loadBalancing_p4_t	= (double)(clock() - currTS_p4) / CLOCKS_PER_SEC;
     cout<< "Get Load Balancing Time "<< loadBalancing_p4_t << endl;
-
+	
 	// Thread Working
 	sets_of_edges_t.resize(numThreads);
 	pthread_t threads[numThreads-1];
@@ -1038,11 +973,11 @@ int main(int argc, char** argv) {
 	double allDone_pX_Wt = getWallTime();
 	cout<< "Get Total Wall Time "<< (double)(allDone_pX_Wt - currWallT_p0) << endl;
 
-    string out_file_path = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/data/";
-    // string out_file_path = "/home/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/data/";
-	string out_name1 = out_file_path + "out_single_linkage_"+ fileName + "_parallel_normal_blocking";
-	string out_name2 = out_file_path + "out_complete_linkage_"+ fileName + "_parallel_normal_blocking";
-	string stat_file_name = "stat_"+ fileName + "_parallel_normal_blocking";
+    // string out_file_path = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/data/";
+    string out_file_path = "/home/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/data/";
+	string out_name1 = out_file_path + "out_single_linkage_"+ fileName + "_parallel_normal_blocking_lastName_6_threads";
+	string out_name2 = out_file_path + "out_complete_linkage_"+ fileName + "_parallel_normal_blocking_lastName_6_threads";
+	string stat_file_name = "stat_"+ fileName + "_parallel_normal_blocking_lastName_6_threads";
 
 	writeFinalConnectedComponentToFile(out_name2);
 
