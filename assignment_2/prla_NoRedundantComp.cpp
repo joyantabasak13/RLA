@@ -1,35 +1,46 @@
-#include <iostream>
-#include <fstream>
-#include <iostream>
-#include <string>
-#include <vector>
+#include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <cstdlib>
-#include <chrono>
-#include <set>
-#include <unordered_set>
-#include <tuple>
-#include <utility>
-#include <algorithm>
+#include <fstream>
+#include <iostream>
+#include <iostream>
 #include <map>
-#include <unordered_map>
+#include <pthread.h>
+#include <set>
+#include <string>
+#include <sys/time.h>
+#include <tuple>
+#include <time.h>
+#include <unistd.h>
+#include <utility>
+#include <vector>
+#include <mutex> 
+
 #include <boost/algorithm/string.hpp>
 #include <boost/foreach.hpp>
 
 using namespace std;
 
 int threshold = 99;
-int totalRecords = 50000;
+int totalRecords;
 int lenMax;
 int totalUniqueRecords;
+int totalUniqueBlocks;
+int totalBlockedKmers;
 int attributes;
+int base = 26;
+int kmer = 3;
+int blockIDRange = pow(base,kmer);
 int extraEdges = 0;
+int numThreads = 6;
+long long int totalCompRequired;
+long long int nonRedundantComp;
+std::mutex mtx;
 
-vector<int> blockfieldArr;
-// vector<string> uniqueblockfieldArr;
 vector<set<int> > block_list;
 vector<vector<int> > exactmatches;
-unordered_map<int, vector<int> > approxConnectedComponents;
+map<int, vector<int> > approxConnectedComponents;
 vector<vector<int> > finalConnectedComponents;
 vector<string> vec1D;
 vector<vector<string> > vec2D;
@@ -37,10 +48,14 @@ vector<vector<int> > clusterExactIndArr;
 vector<pair<int,string> > uniqueRecords;
 vector<pair<int,string> > headlessCopies;
 vector<pair<int, string> > combinedData;
-
+vector<pair<int,int> > blockingIDList;
+vector<pair<int,int> > blockingIDListCopyForCompCalculation;
+vector<pair<int, int>> boundaryArr;
+vector<pair<int,int> > compList;
+vector<vector<pair<int, int>>> assignedBlocklists;
 vector<vector<int> > edgeArr;
 set<pair<int, int> > set_of_edges;
-set<pair<int, int >> set_of_comparisions;
+vector<set<pair<int, int> >> sets_of_edges_t;
 
 // helps edit distance calculation in calculateBasicED()
 int calculateBasicED2(string& str1, string& str2, int threshRem)
@@ -234,9 +249,16 @@ void getFormattedDataFromCSV(string& file_path) {
     								});
 		result[1].erase(last, result[1].end()); //Remove junk left by remove_if() at the end of iterator
         boost::to_lower(result[1]);
+		// auto first = std::remove_if(result[2].begin(), result[2].end(), [](auto ch) {
+        // 								return ::isdigit(ch) || ::ispunct(ch) || ::iswpunct(ch);
+    	// 							});
+		// result[2].erase(first, result[2].end()); //Remove junk left by remove_if() at the end of iterator
+        // boost::to_lower(result[2]);
+
 		vec.push_back(result[1]);
 		vec.push_back(result[2]);
 		vec.push_back(result[3]);
+		// vec.push_back(result[4]);
         vec2D.push_back(vec);
     }
     records.close();
@@ -335,7 +357,7 @@ void getExactMatches() {
 	}
 	exactmatches.push_back(tempVec);
 	totalUniqueRecords = exactmatches.size();
-	cout << endl << "total exact clusters: " << totalUniqueRecords << endl;
+	cout << "total exact clusters: " << totalUniqueRecords << endl;
 }
 
 void getUniqueEntries() {
@@ -348,120 +370,258 @@ void getUniqueEntries() {
     }
 }
 
-void doSortedComp() {
-	headlessCopies.resize(2*totalUniqueRecords);
-	for(int i=0; i< uniqueRecords.size(); i++) { 
-		headlessCopies[i].first = i;
-		headlessCopies[i].second = uniqueRecords[i].second;
-		headlessCopies[totalUniqueRecords+i].first = i;
-		headlessCopies[totalUniqueRecords+i].second = uniqueRecords[i].second.substr(1,uniqueRecords[i].second.size()-1) + '0';
-		// cout<< uniqueRecords[i].second << endl;
-		// cout<< headlessCopies[totalUniqueRecords+i].second << endl;
+int getKmerCount() {
+	long long int totalKmerCount = 0;
+	string blockingStr;
+	for (int i = 0; i < totalUniqueRecords; i++) {
+		totalKmerCount += vec1D[uniqueRecords[i].first*attributes + 1].size() - kmer + 1;
 	}
-	radixSort(headlessCopies);
-	for (int i = 1; i < headlessCopies.size(); i++) {
-		// cout<< headlessCopies[i].second << endl;
-		if (headlessCopies[i-1].second.compare(headlessCopies[i].second) == 0) {
-			// cout<< headlessCopies[i-1].first << " " << headlessCopies[i-1].second << endl;
-			// cout<< headlessCopies[i].first << " " << headlessCopies[i].second << endl;
-			pair<int, int> edge_pair;
-            int i_th_record_id = headlessCopies[i-1].first;
-            int j_th_record_id = headlessCopies[i].first;
-            if (i_th_record_id < j_th_record_id) {
-                edge_pair.first = i_th_record_id;
-                edge_pair.second = j_th_record_id;
-            } else {
-                edge_pair.first = j_th_record_id;
-                edge_pair.second = i_th_record_id;
-            }
-			
-            if (!set_of_edges.count(edge_pair)) {
-                set_of_edges.insert(edge_pair);
-				extraEdges++;
-            }
-		}
-	}
-	cout<< "Edges Added: "<< extraEdges << endl;
+	return totalKmerCount;
 }
 
-void doNormalBlocking() {
-	int base = 26;
-	int kmer = 3;
-    int blockID = 0;
-	int total_blocked = 0;
-    int unique_blocked = 0;
-    int total_str_size = 0;
-	int blockTotal = pow(base,kmer);
-	block_list.resize(blockTotal);
-
-	cout<< "Total unique records: " << totalUniqueRecords << endl;
-
-	for (int i = 0; i < totalUniqueRecords; i++)
-	{
-		string blockingStr = vec1D[uniqueRecords[i].first*attributes + 1];
-        // string blockingStr = vec2D[uniqueRecords[i].first][1];
-        total_str_size += blockingStr.size();
-        // cout<< i << "\t" << blockingStr << "\t" << blockingStr.size() << endl;
-		for (int j = 0; j < blockingStr.size() - kmer + 1 ; ++j)
-		{
+void getBlockingIDArray() {
+	int totalKMers = getKmerCount();
+	cout << "Total Kmers: " << totalKMers << endl;
+	blockingIDList.resize(totalKMers);
+	int ind = 0;
+	int blockID = 0;
+	int indATUnique = 0;
+	string blockingStr;
+	for (int i = 0; i < totalUniqueRecords; i++) {
+		indATUnique = i;
+		blockingStr = vec1D[uniqueRecords[i].first*attributes + 1];
+		string temp_str = vec1D[uniqueRecords[i].first*attributes + 1];
+		while(blockingStr.size() < kmer) {
+			if (blockingStr.size() == 0) {
+				blockingStr = "a";
+				temp_str = "a";
+			}
+			blockingStr = blockingStr + temp_str;
+		}
+		for (int j = 0; j < blockingStr.size() - kmer + 1 ; ++j) {
 			blockID = 0;
-
 			for (int k = 0; k < kmer; ++k)
 			{
 				blockID += ((int)blockingStr[j+k] - 97) * pow(base,k);
 			}
-			if(!block_list[blockID].count(i)){
-                block_list[blockID].insert(i);
-                unique_blocked++;
-            }
-			total_blocked++;
+			blockingIDList[ind].first = blockID;
+			blockingIDList[ind].second = indATUnique;
+			ind++;
 		}
 	}
-	cout<< "Total blocked: " << total_blocked << endl;
-    cout<< "Uniquely blocked: " << unique_blocked << endl;
-    cout<< "Total string size covered: " << total_str_size << endl;
-    cout<< "Expected blocks:" << total_str_size - (kmer-1)*totalUniqueRecords << endl;
 }
 
-void doSuperBlocking() {
-	int base = 26;
-	int kmer = 3;
-    int blockID = 0;
-	int total_blocked = 0;
-    int unique_blocked = 0;
-    int total_str_size = 0;
-	int perAplhaBlocks = pow(base,kmer);
-	int blockTotal = base * perAplhaBlocks;
-	block_list.resize(blockTotal);
+void sortBlockingIDArray() {
+	int numRecords = blockingIDList.size();
+	vector<pair<int, int>> tempArr(numRecords);
+	vector<int> countArr(blockIDRange, 0);
 
-	cout<< "Total unique records: " << totalUniqueRecords << endl;
+	for (int j = 0; j < numRecords; ++j) {
+		countArr[blockingIDList[j].first]++;
+	}
+	// Do prefix sum
+	for (int k = 1; k < blockIDRange; ++k)
+		countArr[k]	+= countArr[k - 1];
 
-	for (int i = 0; i < totalUniqueRecords; i++)
-	{
-		string blockingStr = vec1D[uniqueRecords[i].first*attributes + 1];
-        // string blockingStr = vec2D[uniqueRecords[i].first][1];
-        total_str_size += blockingStr.size();
-        // cout<< i << "\t" << blockingStr << "\t" << blockingStr.size() << endl;
-		for (int j = 0; j < blockingStr.size() - kmer + 1 ; ++j)
-		{
-			blockID = 0;
+	for (int j = numRecords - 1; j >= 0; --j)
+		tempArr[--countArr[blockingIDList[j].first]] = blockingIDList[j];
+	
+	for (int j = 0; j < numRecords; ++j)
+		blockingIDList[j] = tempArr[j];
+}
 
-			for (int k = 0; k < kmer; ++k)
-			{
-				blockID += ((int)blockingStr[j+k] - 97) * pow(base,k);
-			}
-			blockID = (blockingStr[0]-97)*perAplhaBlocks + blockID;
-			if(!block_list[blockID].count(i)){
-                block_list[blockID].insert(i);
-                unique_blocked++;
-            }
-			total_blocked++;
+void removeRedundentBlockingID() {
+	int numRecords = blockingIDList.size();
+	vector<pair<int, int>> tempArr;
+	totalUniqueBlocks = 1;
+	int copy_count = 1;
+	tempArr.push_back(blockingIDList[0]);
+	for (int i = 1; i<numRecords; i++) {
+		if (blockingIDList[i].first != blockingIDList[i-1].first) {
+			totalUniqueBlocks++;
+		}
+		if ( ! ((blockingIDList[i].first == blockingIDList[i-1].first) && (blockingIDList[i].second == blockingIDList[i-1].second))) {
+			tempArr.push_back(blockingIDList[i]);
+			copy_count++;
 		}
 	}
-	cout<< "Total blocked: " << total_blocked << endl;
-    cout<< "Uniquely blocked: " << unique_blocked << endl;
-    cout<< "Total string size covered: " << total_str_size << endl;
-    cout<< "Expected blocks:" << total_str_size - (kmer-1)*totalUniqueRecords << endl;
+	totalBlockedKmers = copy_count;
+	blockingIDList = tempArr;
+	cout << "Total Length: "<< numRecords << " total copies: "<< copy_count << " Total Unique Blocks: "<< totalUniqueBlocks << endl;
+}
+
+void copyBlockingIDList() {
+	// following list keeps recordID in first element and blockID in second 
+	blockingIDListCopyForCompCalculation.resize(blockingIDList.size());
+	for (int i = 0; i < blockingIDList.size(); i++)
+	{
+		blockingIDListCopyForCompCalculation[i].first = blockingIDList[i].second;
+		blockingIDListCopyForCompCalculation[i].second = blockingIDList[i].first;
+
+	}
+}
+
+void sortBlockingIDListByRecID() {
+	std::sort(blockingIDListCopyForCompCalculation.begin(), blockingIDListCopyForCompCalculation.end());
+}
+
+void findBlockBoundaries() {
+	boundaryArr.resize(pow(base,kmer));
+	int numRecords = blockingIDList.size();
+	int startInd = 0;
+	int range = 0;
+	for (int i = 1; i<numRecords; i++) {
+		if (blockingIDList[i].first != blockingIDList[i-1].first) {
+			range = i-startInd;
+			boundaryArr[blockingIDList[i-1].first].first = startInd;
+			boundaryArr[blockingIDList[i-1].first].second = range;
+			startInd = i;
+		}
+	}
+	// Enter last Block info
+	range = numRecords-startInd;
+	boundaryArr[blockingIDList[numRecords-1].first].first = startInd;
+	boundaryArr[blockingIDList[numRecords-1].first].second = range;
+}
+
+// void findBlockBoundaries() {
+// 	//just keep starting ind and range.
+// 	boundaryArr.resize(totalUniqueBlocks);
+// 	int numRecords = blockingIDList.size();
+// 	totalCompRequired = 0;
+// 	int startInd = 0;
+// 	int range = 0;
+// 	int curBlockInd = 0;
+// 	for (int i = 1; i<numRecords; i++) {
+// 		if (blockingIDList[i].first != blockingIDList[i-1].first) {
+// 			range = i-startInd;
+// 			boundaryArr[curBlockInd].first = startInd;
+// 			boundaryArr[curBlockInd].second = range;
+// 			totalCompRequired = totalCompRequired + pow(range,2);
+// 			curBlockInd++;
+// 			startInd = i;
+// 		}
+// 	}
+// 	// Enter last Block info
+// 	range = numRecords-startInd;
+// 	totalCompRequired = totalCompRequired + pow(range,2);
+// 	boundaryArr[curBlockInd].first = startInd;
+// 	boundaryArr[curBlockInd].second = range;
+// 	curBlockInd++;
+// 	cout<< "Total Unique blocks found: " << curBlockInd << endl;
+// }
+
+pair<int, int> findRecordIndicesforComp(pair<int, int> &recSpace, int recID){
+	int left = recSpace.first;
+	int right = recSpace.first + recSpace.second;
+	while(1) {
+		if (left > right) {
+			recSpace.first = recSpace.second;
+			return recSpace;
+		}
+		int m = (int)floor((left+right) / 2);
+		if (recID > blockingIDList[m].second) {
+			left = m+1;
+		} else if (recID < blockingIDList[m].second) {
+			right = m-1;
+		} else if (recID == blockingIDList[m].second) {
+			recSpace.first = m;
+			return recSpace;
+		}
+	}
+}
+
+void findComparisions() {
+	nonRedundantComp = 0;
+	for (int i = 0; i < blockingIDListCopyForCompCalculation.size(); i++)
+	{
+		int curRecID = blockingIDListCopyForCompCalculation[i].first;
+		int curBlockID = blockingIDListCopyForCompCalculation[i].second;
+		set<int> compRecs;
+		pair<int,int> recSpace = boundaryArr[curBlockID];
+		// cout<< "Before Block starts: "<< recSpace.first << " Ends: " << recSpace.first + recSpace.second << endl;
+		recSpace = findRecordIndicesforComp(recSpace, curRecID);
+		// cout<< "Block starts: "<< recSpace.first << " Ends: " << recSpace.first + recSpace.second << endl;
+		for (int j = recSpace.first + 1; j < recSpace.first+recSpace.second; j++) {
+			// pair<int,int> compIds;
+			// compIds.first = curRecID;
+			// compIds.second = blockingIDList[j].second;
+			// compList.push_back(compIds);
+			int compared_rec = blockingIDList[j].second;
+			if(!compRecs.count(compared_rec)) {
+				compRecs.insert(compared_rec);
+			}
+		}
+		nonRedundantComp += compRecs.size();
+	}
+}
+
+void sortCompList() {
+	std::sort(compList.begin(), compList.end());
+}
+
+void removeRedundentComps() {
+	vector<pair<int,int>> nonRedundentComps;
+	for(int i=0; i<compList.size()-1; i++) {
+		if (compList[i].first == compList[i+1].first) {
+			if (compList[i].second == compList[i+1].second) {
+				continue;
+			}
+		}
+		nonRedundentComps.push_back(compList[i]);
+	}
+	compList = nonRedundentComps;
+}
+
+void sortByBlockSizes() {
+	std::sort(boundaryArr.begin(), boundaryArr.end(), [](auto &left, auto &right) {
+    	return left.second < right.second;
+	});
+}
+
+void findBlockAssignments() {
+	assignedBlocklists.resize(numThreads);
+	cout << "Total comp required: " << totalCompRequired << endl;
+	long long int threshold = (long long int)(totalCompRequired/numThreads);
+	long long int curAssignmentSize = 0;
+	int lastInd = boundaryArr.size();
+	int startInd = -1;
+ 
+	for(int i=0; i<numThreads; i++) {
+		curAssignmentSize = 0;
+		//cout<< "Thread: "<< i << " was assigned: " << curAssignmentSize << " comparisions where threshold is: " << threshold << endl;
+		for (int j = lastInd-1; j > startInd; j--)
+		{
+			//cout<< "SegFault for j " << j << endl;
+			long long int curBlockSize = pow(boundaryArr[j].second,2);
+			if ((curAssignmentSize+curBlockSize) < threshold) {
+				assignedBlocklists[i].push_back(boundaryArr[j]);
+				curAssignmentSize = curAssignmentSize + curBlockSize;
+				lastInd = j;
+			} else {
+				break;
+			}
+		}
+		// cout<< "Thread: "<< i << " was assigned: " << curAssignmentSize << " comparisions where threshold is: " << threshold << endl;
+		if (curAssignmentSize < threshold) {
+			for(int j = startInd+1; j<lastInd; j++) {
+				if (curAssignmentSize < threshold) {
+					assignedBlocklists[i].push_back(boundaryArr[j]);
+					curAssignmentSize = curAssignmentSize + pow(boundaryArr[j].second,2);
+					startInd = j;
+				} else {
+					break;
+				}
+			}
+		}
+		cout<< "Thread: "<< i << " was assigned: " << curAssignmentSize << " comparisions where threshold is: " << threshold << endl;
+	}
+	cout<< "Start ind: " << startInd << " last ind " << lastInd << endl; 
+	if (lastInd - startInd > 1) {
+		for (int i = startInd + 1; i<lastInd; i++) {
+			assignedBlocklists[i%numThreads].push_back(boundaryArr[i]);
+		}
+	}
 }
 
 bool isLinkageOk(vector<string> &a, vector<string> &b, int threshold)
@@ -492,6 +652,41 @@ bool isLinkageOk(vector<string> &a, vector<string> &b, int threshold)
     }
 }
 
+
+// WHY NOT Adding the distances ??
+// bool isLinkageOk(vector<string> &a, vector<string> &b, int threshold)
+// {
+//     //int dist = 0;
+// 	int last_name_dist = calculateBasicED(a[1], b[1], 1);
+//     //dist +=name_dist;
+//     if (last_name_dist <= threshold) {
+// 		int first_name_dist = calculateBasicED(a[2], b[2], 1);
+// 		if (first_name_dist <= threshold) {	
+// 			int dod_dist = calculateBasicED(a[3], b[3], 1);
+// 			//dist+=dod_dist;   
+// 			if (dod_dist <= threshold) {
+// 				int dob_dist = calculateBasicED(a[4], b[4], 1);
+// 				//dist+=dod_dist;
+// 				// if(dist==0) {
+// 				//     //Self edge?
+// 				//     return false;
+// 				// }
+// 				if (dob_dist <= threshold) {
+// 					return true;
+// 				} else {
+// 					return false;
+// 				}
+// 			} else {
+// 				return false;
+// 			}
+//         } else {
+//             return false;
+//         }
+//     } else {
+//         return false;
+//     }
+// }
+
 void generateEdgilist(set<int>& blockRowArr)
 {
 	int blockItemTotal	= blockRowArr.size();
@@ -519,17 +714,13 @@ void generateEdgilist(set<int>& blockRowArr)
                 edge_pair.first = j_th_record_id;
                 edge_pair.second = i_th_record_id;
             }
-			// string key = 
-			if (!set_of_comparisions.count(edge_pair)) {
-				// if (!set_of_edges.count(edge_pair)) {
-				if (isLinkageOk(dataArr[i], dataArr[j], 1)) {
-					set_of_edges.insert(edge_pair);
-				}
-				set_of_comparisions.insert(edge_pair);
-            	// }
-			}
-        }
-        
+
+            if (!set_of_edges.count(edge_pair)) {
+                if (isLinkageOk(dataArr[i], dataArr[j], 1)) {
+                    set_of_edges.insert(edge_pair);
+                }
+            }
+        }  
 	}
 
 	dataArr.clear();
@@ -720,89 +911,185 @@ void writeFinalConnectedComponentToFile(string& result_file_name) {
 	out_file.close();
 }
 
+double getWallTime() {
+	struct timeval time;
+    if (gettimeofday(&time,NULL)){
+        //  Handle error
+        return 0;
+    }
+    return (double)time.tv_sec + (double)time.tv_usec * .000001;
+}
+
+void mergeEdges() {
+	for(int i= 0; i<numThreads; i++ ) {
+		BOOST_FOREACH(pair p, sets_of_edges_t[i]) {
+			if(!set_of_edges.count(p)) {
+				set_of_edges.insert(p);
+			}
+		}
+	}
+}
+
+void getBlockRecords(pair<int, int> &blockInfo, vector<pair<int, vector<string>>> &recordList) {
+	recordList.resize(blockInfo.second);
+	for (int i = 0; i < blockInfo.second; i++) {
+		recordList[i].first = blockingIDList[blockInfo.first+i].second;
+		recordList[i].second = vec2D[uniqueRecords[recordList[i].first].first];
+	}
+}
+
+void getEdgesFromBlockedRecords(int id, vector<pair<int, vector<string>>> blockRecords) {
+	for (int i = 0; i < blockRecords.size() - 1; i++)
+	{
+        for (int j = i+1; j < blockRecords.size(); j++)
+        {
+            pair<int, int> edge_pair;
+            int i_th_record_id = blockRecords[i].first;
+            int j_th_record_id = blockRecords[j].first;
+            if (i_th_record_id < j_th_record_id) {
+                edge_pair.first = i_th_record_id;
+                edge_pair.second = j_th_record_id;
+            } else {
+                edge_pair.first = j_th_record_id;
+                edge_pair.second = i_th_record_id;
+            }
+
+            if (!sets_of_edges_t[id].count(edge_pair)) {
+                if (isLinkageOk(blockRecords[i].second, blockRecords[j].second, 1)) {
+                    sets_of_edges_t[id].insert(edge_pair);
+                }
+            }
+        }  
+	}
+}
+
+void doNormalThreadedBlocking(int tID) {
+	cout<< "Doing Normal Blocking for Thread: " << tID << endl;
+	cout<< "Thread: "<< tID << " has " << assignedBlocklists[tID].size() << " blocks" << endl;
+	for(int i = 0; i< assignedBlocklists[tID].size(); i++) {
+		pair<int, int> block = assignedBlocklists[tID][i];
+		vector<pair<int, vector<string>>> blockRecords;
+		getBlockRecords(block, blockRecords);
+		getEdgesFromBlockedRecords(tID, blockRecords);
+	}
+	cout << "Thread "<< tID << " Total edges: "<< sets_of_edges_t[tID].size() << endl;
+}
+
+// main function for threads
+void *threadDriver(void* ptr) {
+	// int threadID = *static_cast<int*>(ptr);
+	int threadID = *static_cast<int*>(ptr);
+	cout<< "Thread: " << threadID << " Running" << endl;
+	doNormalThreadedBlocking(threadID);
+	return 0;
+}
 
 int main(int argc, char** argv) {
-	cout<< "USED COMPARISION SET__NORMAL BLOCKING"<<endl;
-    // string filePath = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/";
-    string filePath = "/home/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/";
+    string filePath = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/";
+    // string filePath = "/home/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/firstName_LastName_DS/";
     string fileName = argv[1];
     filePath = filePath + argv[1];
     getFormattedDataFromCSV(filePath);
 	totalRecords = vec2D.size();
 	getCombinedData();
 
-    cout<< "Number of Records: " << vec2D.size() << endl;
-	cout<< "Number of Combined data pairs: "<< combinedData.size() << endl;
-
-    clock_t currTS1	= clock();
+	// Sort the Combined Data
+	clock_t currTS_p0	= clock();
+	double currWallT_p0 = getWallTime();
     radixSort(combinedData);
-    double sorting_t	= (double)(clock() - currTS1) / CLOCKS_PER_SEC;
-    cout<< "Sorting time "<< sorting_t << endl;
-    // printSortedRecords();
-    clock_t currTS3	= clock();
-    getExactMatches();
+    double sorting_p0_t	= (double)(clock() - currTS_p0) / CLOCKS_PER_SEC;
+    cout<< "Sorting time "<< sorting_p0_t << endl;
+
+	// Get Unique Records
+	clock_t currTS_p1	= clock();
+	getExactMatches();
     getUniqueEntries();
-    double findingExact_t	= (double)(clock() - currTS3) / CLOCKS_PER_SEC;
-    cout<< "My Exact Clustering time "<< findingExact_t << endl;
+	double exactClustering_p1_t	= (double)(clock() - currTS_p1) / CLOCKS_PER_SEC;
+    cout<< "De-duplication Time "<< exactClustering_p1_t << endl;
 
-	clock_t currTS3_1	= clock();
-	// doSortedComp();
-	double sortingComp_t	= (double)(clock() - currTS3_1) / CLOCKS_PER_SEC;
-	cout<< "Sorting and Comparision time "<< sortingComp_t << endl;
-    
-    // for (size_t i = 0; i < uniqueRecords.size(); i++)
-	// {
-    //     cout<< uniqueRecords[i].first << " " << uniqueRecords[i].second <<endl;
-    //     cout<< vec1D[uniqueRecords[i].first*attributes + 1] << endl;
-	// }
-    
+	// Get Blocking ID Array
+	clock_t currTS_p2	= clock();
+	getBlockingIDArray();
+	double blockingArray_p2_t	= (double)(clock() - currTS_p2) / CLOCKS_PER_SEC;
+    cout<< "Getting Blocking Array Time "<< blockingArray_p2_t << endl;
 
-    clock_t currTS4	= clock();
-    //doSuperBlocking();
-	doNormalBlocking();
-    double blocking_t	= (double)(clock() - currTS4) / CLOCKS_PER_SEC;
-    cout<< "Normal Blocking time "<< blocking_t << endl;
+	// Get Sorted Blocking ID Array
+	clock_t currTS_p3	= clock();
+	sortBlockingIDArray();
+	double sortBlockingArray_p3_t	= (double)(clock() - currTS_p3) / CLOCKS_PER_SEC;
+    cout<< "Getting Sorted Blocking Array Time "<< sortBlockingArray_p3_t << endl;
 
-    clock_t currTS5	= clock();
-    createClusterEdgeList();
-    double createEdges_t	= (double)(clock() - currTS5) / CLOCKS_PER_SEC;
-    cout<< "Edge list creation Time "<< createEdges_t << endl;
-    //printEdges();
-    clock_t currTS6	= clock();
-    findConnComp();
-    double findComp_t	= (double)(clock() - currTS6) / CLOCKS_PER_SEC;
-    cout<< "Connected Comp Find Time "<< findComp_t << endl;
-    //printApproximateCluster();
-    clock_t currTS7	= clock();
-    findFinalConnectedComp(1);
-    double findFinalComp_t	= (double)(clock() - currTS7) / CLOCKS_PER_SEC;
-    cout<< "Final Connected Comps Find Time "<< findFinalComp_t << endl;
-    //printFinalConnectedClusters();
-    double total_t	= (double)(clock() - currTS1) / CLOCKS_PER_SEC;
-    cout<< "Total run time "<< total_t << endl;
-
-    //count number of pairs compared
-	long long int total_comp = 0;
-	// for (size_t i = 0; i < block_list.size(); i++)
-	// {
-	// 	int cur_size = block_list[i].size();
-	// 	int cur_comp = (int)((cur_size * (cur_size - 1)) / 2);
-	// 	total_comp += cur_comp;
-	// }
-	total_comp = set_of_comparisions.size();
-	long long int tot_possible_com = (vec2D.size()*(vec2D.size() - 1))/2 ;
+	clock_t currTS_p4	= clock();
+	removeRedundentBlockingID();
+	copyBlockingIDList();
+	sortBlockingIDListByRecID();
+	findBlockBoundaries();
+	findComparisions();
+	// cout<< "Total Comparisions: " << compList.size() << endl;
+	// sortCompList();
+	// removeRedundentComps();
+	cout<< "Total Unique Comparisions: " << nonRedundantComp << endl;
+	double comp_p4_t	= (double)(clock() - currTS_p4) / CLOCKS_PER_SEC;
+    cout<< "Get Comp Extract Time "<< comp_p4_t << endl;
+	return 0;
+	sortByBlockSizes();
+	findBlockAssignments();
+	double loadBalancing_p4_t	= (double)(clock() - currTS_p4) / CLOCKS_PER_SEC;
+    cout<< "Get Load Balancing Time "<< loadBalancing_p4_t << endl;
 	
-	cout << "Number of Possible comparison: " << tot_possible_com << endl;
-	cout << "Total Comp. Done: "<< total_comp << endl;
-	cout << "Reduction Ratio:" << ((long double)total_comp / (long double) tot_possible_com) << endl; 
-	cout<< "Total Approximately Connected Components: " << approxConnectedComponents.size()<< endl;
-	cout<< "Total Final Connected Components: " << finalConnectedComponents.size() << endl;
+	// Thread Working
+	sets_of_edges_t.resize(numThreads);
+	pthread_t threads[numThreads-1];
+	clock_t currTS_p5	= clock();
+	double currWallT_p5 = getWallTime();
+	for (int i = 0; i < numThreads-1; i++)
+	{
+		int threadID = static_cast<int>(i);
+		int iret = pthread_create(&threads[threadID], NULL, threadDriver, &threadID);
+		usleep(10);
+	}
 
-    // string out_file_path = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/data/";
-    string out_file_path = "/home/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/data/";
-	string out_name1 = out_file_path + "out_single_linkage_"+ fileName + "_normal_blocking_hash";
-	string out_name2 = out_file_path + "out_complete_linkage_"+ fileName + "_normal_blocking_hash";
-	string stat_file_name = "stat_"+ fileName + "_normal_blocking_hash";
+	doNormalThreadedBlocking(numThreads-1);
+
+	for (int i = 0; i < numThreads-1; i++)
+	{
+		int threadID = i;
+		pthread_join(threads[threadID], NULL);
+	}
+
+	double comparisionsDone_p5_t	= (double)(clock() - currTS_p5) / CLOCKS_PER_SEC;
+	double comparisionsDone_p5_Wt = getWallTime();
+    cout<< "Get Camparision time done in threads Processor Time "<< comparisionsDone_p5_t << endl;
+	cout<< "Get Camparision time done in threads Wall Time "<< (double)(comparisionsDone_p5_Wt - currWallT_p5) << endl;
+
+	// Merge edges
+	clock_t currTS_p6	= clock();
+	mergeEdges();
+	double edgeMergingDone_p6_t	= (double)(clock() - currTS_p6) / CLOCKS_PER_SEC;
+	cout<< "Get edge Merging Time "<< edgeMergingDone_p6_t << endl;
+	cout<< "Total Edges: " << set_of_edges.size() << endl;
+
+	// Find Connected components
+	clock_t currTS_p7	= clock();
+    findConnComp();
+    double findComp_p7_t	= (double)(clock() - currTS_p7) / CLOCKS_PER_SEC;
+    cout<< "Connected Comp Find Time "<< findComp_p7_t << endl;
+    // // printApproximateCluster();
+    clock_t currTS_p8_t	= clock();
+    findFinalConnectedComp(1);
+    double findFinalComp_t	= (double)(clock() - currTS_p8_t) / CLOCKS_PER_SEC;
+    cout<< "Final Connected Comps Find Time "<< findFinalComp_t << endl;
+    // // printFinalConnectedClusters();
+    double total_t	= (double)(clock() - currTS_p0) / CLOCKS_PER_SEC;
+	cout<< "Total processor run time "<< total_t << endl;
+	double allDone_pX_Wt = getWallTime();
+	cout<< "Get Total Wall Time "<< (double)(allDone_pX_Wt - currWallT_p0) << endl;
+
+    string out_file_path = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/data/";
+    // string out_file_path = "/home/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/data/";
+	string out_name1 = out_file_path + "out_single_linkage_"+ fileName + "_parallel_normal_blocking_lastName_6_threads";
+	string out_name2 = out_file_path + "out_complete_linkage_"+ fileName + "_parallel_normal_blocking_lastName_6_threads";
+	string stat_file_name = "stat_"+ fileName + "_parallel_normal_blocking_lastName_6_threads";
 
 	writeFinalConnectedComponentToFile(out_name2);
 
@@ -810,20 +1097,14 @@ int main(int argc, char** argv) {
     ofstream stat_file;
 	stat_file.open(stat_file_path);
 	stat_file << "DataSize: "<< vec2D.size() << endl;
-	stat_file << "Number of Possible comparison: " << tot_possible_com << endl;
-	stat_file << "Number of pairs compared: " << total_comp  << endl;
-	stat_file << "Reduction Ratio:" << ((long double)total_comp / (long double) tot_possible_com) << endl;
+	// stat_file << "Number of Possible comparison: " << tot_possible_com << endl;
+	// stat_file << "Number of pairs compared: " << total_comp  << endl;
+	// stat_file << "Reduction Ratio:" << ((long double)total_comp / (long double) tot_possible_com) << endl;
 	stat_file << "Number of Edges: "<< set_of_edges.size() << endl;
 	stat_file << "Total Single Clusters: " << approxConnectedComponents.size()<< endl;
 	stat_file << "Total Complete Clusters " << finalConnectedComponents.size() << endl;
-	stat_file << "Total Time taken: " << total_t << " Seconds" << endl;
-	stat_file << "Sorting time: " << sorting_t << " Seconds" << endl;
-	stat_file << "Sorting with head removed and Comparison time: " << sortingComp_t << " Seconds" << endl;
-	stat_file << "Finding Exact Clusters time: " << findingExact_t << " Seconds" << endl;
-    stat_file << "Blocking time: " << blocking_t << " Seconds" << endl;
-    stat_file << "Edge generation Time: " << createEdges_t << " Seconds" << endl;
-    stat_file << "Find Approximate Clusters Time: " << findComp_t << " Seconds" << endl;
-    stat_file << "Find Final Clusters Time: " << findFinalComp_t << " Seconds" << endl;
+	stat_file << "Total Processor Time taken: " << total_t << " Seconds" << endl;
+	stat_file << "Total Wall Time Taken: " << (double)(allDone_pX_Wt - currWallT_p0) << " Seconds" << endl;
 	stat_file.close();
 
     return 0;

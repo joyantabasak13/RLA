@@ -179,13 +179,13 @@ def get_linkage_fn(size, group_dict):
     return tot_fn
 ### main ###
 
-file_path = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/Server_results/run2_11Dec/ClOut_ds6_800k__TIMEOutFinal.txt"
+file_path = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/Server_results/NC_results/out_complete_linkage_NC_voter_1MNC_voter_data_1M.csv_normal_blocking_lastName"
 # file_path = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/Server_results/run2_11Dec/out_complete_linkage_ds1_50k_normal_blocking.txt"
 
 ### Calculate Cluster Accuracy
 max_component_size = 100
 tot_comp, correct_comp, incorrect_comp = get_data(file_path, max_component_size)
-number_of_records = 50000
+number_of_records = 1000000
 expected_size = 5
 get_cluster_performance(tot_comp, correct_comp, incorrect_comp, expected_size, max_component_size)
 cluster_members_vec = get_clusters(file_path)

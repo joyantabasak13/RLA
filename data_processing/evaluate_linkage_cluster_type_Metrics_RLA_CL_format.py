@@ -114,8 +114,6 @@ def get_cluster_types(ssn_groups_in_single_cluster, ssn_counts):
 def get_linkage_tp(ssn_groups):
     tp_count = 0
     for x in ssn_groups:
-        # if len(ssn_groups[x]) > 1:
-        #     print(ssn_groups[x])
         for y in ssn_groups[x]:
             tp_count = tp_count + math.comb(y, 2)
     return tp_count
@@ -176,11 +174,11 @@ def get_cluster_sizes(clusters):
 ### main ###
 
 # file_path = "/Users/joyanta/Downloads/output_edit_ds2.1.txtOutSingle"
-file_path = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/Server_results/NC_results/out_complete_linkage_NC_voter_1M_4RecordPer_250000PersonNC_voter_data_mixed_1M.csv_super_blocking_lastName"
+file_path = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/Server_results/NC_results/ClOut_lastName_NC_1M__TIMEOutFinal.txt"
 
 ### Calculate Cluster Accuracy
 
-cluster_members_vec = get_my_clusters(file_path)
+cluster_members_vec = get_rlaCL_clusters(file_path)
 ssn_tot_dict, ssn_group_dict, per_cluster_ssn_group_dict = get_ssn_info(cluster_members_vec)
 total_clusters = len(cluster_members_vec)
 types_counts = get_cluster_types(per_cluster_ssn_group_dict, ssn_tot_dict)
@@ -203,18 +201,18 @@ print(f"False Negative Links: {linkage_FN}")
 linkage_TN = math.comb(total_records, 2) - linkage_TP - linkage_FP - linkage_FN
 print(f"True Negative Links: {linkage_TN}")
 
-# P = tp / (tp+fp)
-precision = float(linkage_TP) / float(linkage_TP + linkage_FP)
-# R = tp / (tp+fn)
-recall = float(linkage_TP) / float(linkage_TP + linkage_FN)
-# A = (tp + tn) / (tp + tn + fp + fn)
-accuracy = float(linkage_TP + linkage_TN) / float(linkage_TP + linkage_TN + linkage_FN + linkage_FP)
-# f1 = 2tp / (2tp + fp + fn)
-f1_score = float(2 * linkage_TP) / float(2 * linkage_TP + linkage_FN + linkage_FP)
-
-print(f"Linkage Precision: {precision}")
-print(f"Linkage Recall: {recall}")
-print(f"Linkage f1 score: {f1_score}")
-print(f"Linkage Accuracy: {accuracy}")
+# # P = tp / (tp+fp)
+# precision = float(linkage_TP) / float(linkage_TP + linkage_FP)
+# # R = tp / (tp+fn)
+# recall = float(linkage_TP) / float(linkage_TP + linkage_FN)
+# # A = (tp + tn) / (tp + tn + fp + fn)
+# accuracy = float(linkage_TP + linkage_TN) / float(linkage_TP + linkage_TN + linkage_FN + linkage_FP)
+# # f1 = 2tp / (2tp + fp + fn)
+# f1_score = float(2 * linkage_TP) / float(2 * linkage_TP + linkage_FN + linkage_FP)
+#
+# print(f"Linkage Precision: {precision}")
+# print(f"Linkage Recall: {recall}")
+# print(f"Linkage f1 score: {f1_score}")
+# print(f"Linkage Accuracy: {accuracy}")
 cluster_sizes_dict = get_cluster_sizes(per_cluster_ssn_group_dict)
 print(cluster_sizes_dict)

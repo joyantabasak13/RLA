@@ -17,12 +17,13 @@
 using namespace std;
 
 int threshold = 99;
-int totalRecords = 50000;
+int totalRecords = 0;
 int lenMax;
 int totalUniqueRecords;
 int attributes;
 int targetAttribute;
 int extraEdges = 0;
+long long int approxCompCount = 0;
 
 vector<int> blockfieldArr;
 // vector<string> uniqueblockfieldArr;
@@ -232,11 +233,13 @@ void getFormattedDataFromCSV(string& file_path) {
     								});
 		result[1].erase(last, result[1].end()); //Remove junk left by remove_if() at the end of iterator
         boost::to_lower(result[1]);
-		auto first = std::remove_if(result[2].begin(), result[2].end(), [](auto ch) {
-        								return ::isdigit(ch) || ::ispunct(ch) || ::iswpunct(ch);
-    								});
-		result[2].erase(first, result[2].end()); //Remove junk left by remove_if() at the end of iterator
-        boost::to_lower(result[2]);
+	
+		// auto first = std::remove_if(result[2].begin(), result[2].end(), [](auto ch) {
+        // 								return ::isdigit(ch) || ::ispunct(ch) || ::iswpunct(ch);
+    	// 							});
+		// result[2].erase(first, result[2].end()); //Remove junk left by remove_if() at the end of iterator
+        // boost::to_lower(result[2]);
+	
 		// Delete third for ahmed's dataset
 		// auto third = std::remove_if(result[3].begin(), result[3].end(), [](auto ch) {
         // 								return ::isdigit(ch) || ::ispunct(ch) || ::iswpunct(ch);
@@ -244,10 +247,10 @@ void getFormattedDataFromCSV(string& file_path) {
 		// result[3].erase(third, result[3].end()); //Remove junk left by remove_if() at the end of iterator
         // boost::to_lower(result[3]);
 
-		vec.push_back(result[2]);
 		vec.push_back(result[1]);
+		vec.push_back(result[2]);
 		vec.push_back(result[3]);
-		vec.push_back(result[4]);
+		// vec.push_back(result[4]);
         vec2D.push_back(vec);
     }
     records.close();
@@ -482,6 +485,18 @@ void doSuperBlocking() {
     cout<< "Expected blocks:" << total_str_size - (kmer-1)*totalUniqueRecords << endl;
 }
 
+void countApproxNumOfComp() {
+	long long int count = 0;
+	for (int i = 0; i< block_list.size(); i++) {
+		long long int compInCurrBlock = (int)((block_list[i].size()* (block_list[i].size() - 1)) / 2);
+		count += compInCurrBlock;
+		// if (count < 10000000000)
+		// cout << "Approx number of comparisions: " << count << endl;
+	}
+	approxCompCount = count;
+	// cout << "Approx number of comparisions: " << count << endl;
+}
+
 // Remove later
 bool isLinkageOk_fullname_ds(vector<string> &a, vector<string> &b, int threshold)
 {
@@ -608,6 +623,11 @@ void createClusterEdgeList()
 	{
 		if (block_list[i].size() > 0)
 		{
+			if (block_list[i].size() > 100) {
+			long long int currBlockComp = (int)((block_list[i].size()* (block_list[i].size() - 1)) / 2);
+			cout<< "Block "<< i << " has " << block_list[i].size() << " records" << endl;
+			cout<< "Block "<< i << " would do " << (double)((currBlockComp / approxCompCount)*100.0) << "% comparisions" << endl;
+			}
 			generateEdgilist(block_list[i]);
 		}
 		// cout<< "Block: " << i << " Done" << endl;
@@ -771,6 +791,21 @@ void writeFinalConnectedComponentToFile(string& result_file_name) {
 	out_file.close();
 }
 
+void writeBlockSizesTofile(string& blockSizes_file_name) {
+	ofstream out_file;
+	out_file.open(blockSizes_file_name);
+
+	for (size_t i = 0; i < block_list.size(); i++)
+	{
+		long long int cur_size = block_list[i].size();
+		long long int cur_comp = (int)((cur_size * (cur_size - 1)) / 2);
+		out_file<< i;
+		out_file<< ",";
+		out_file<< cur_comp;
+		out_file<< "\n";
+	}
+	out_file.close();
+}
 
 int main(int argc, char** argv) {
     string filePath = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/";
@@ -800,14 +835,19 @@ int main(int argc, char** argv) {
     cout<< "My Exact Clustering time "<< findingExact_t << endl;
 
 	clock_t currTS3_1	= clock();
-	doSortedComp();
+	//doSortedComp();
 	double sortingComp_t	= (double)(clock() - currTS3_1) / CLOCKS_PER_SEC;
 	cout<< "Sorting and Comparision time "<< sortingComp_t << endl;
 
 
     clock_t currTS4	= clock();
-    doSuperBlocking();
-	// doNormalBlocking();
+    //doSuperBlocking();
+	doNormalBlocking();
+	countApproxNumOfComp();
+	string blockComp_file = "NumCompPerBlock_1M_CTHealth";
+	writeBlockSizesTofile(blockComp_file);
+	cout << "Approx number of comparisions: " << approxCompCount << endl;
+	return 0;
     double blocking_t	= (double)(clock() - currTS4) / CLOCKS_PER_SEC;
     cout<< "Blocking time "<< blocking_t << endl;
 	clock_t currTS5	= clock();
@@ -832,8 +872,8 @@ int main(int argc, char** argv) {
 	long long int total_comp = 0;
 	for (size_t i = 0; i < block_list.size(); i++)
 	{
-		int cur_size = block_list[i].size();
-		int cur_comp = (int)((cur_size * (cur_size - 1)) / 2);
+		long long int cur_size = block_list[i].size();
+		long long int cur_comp = (int)((cur_size * (cur_size - 1)) / 2);
 		total_comp += cur_comp;
 	}
 	long long int tot_possible_com = (vec2D.size()*(vec2D.size() - 1))/2 ;
@@ -846,9 +886,11 @@ int main(int argc, char** argv) {
 
     string out_file_path = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/data/";
     // string out_file_path = "/home/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/data/";
-	string out_name1 = out_file_path + "out_single_linkage_NC_voter"+ fileName + "_super_blocking_lastName";
-	string out_name2 = out_file_path + "out_complete_linkage_NC_voter"+ fileName + "_super_blocking_lastName";
-	string stat_file_name = "stat_NC_voter"+ fileName + "_super_blocking_firstName";
+	string file_prefix = "_super_blocking_lastName";
+	string data_size = "1M_4RecordPer_250000Person";
+	string out_name1 = out_file_path + "out_single_linkage_NC_voter_"+ data_size + fileName + file_prefix;
+	string out_name2 = out_file_path + "out_complete_linkage_NC_voter_"+ data_size + fileName + file_prefix;
+	string stat_file_name = "stat_NC_voter_"+ data_size + fileName + file_prefix;
 
 	writeFinalConnectedComponentToFile(out_name2);
 

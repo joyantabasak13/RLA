@@ -1,0 +1,15 @@
+DataSize: 5000
+Number of Possible comparison: 12497500
+Number of pairs compared: 239836
+Reduction Ratio:0.0191907
+Number of Edges: 1
+Total Single Clusters: 4999
+Total Complete Clusters 4999
+Total Time taken: 0.050366 Seconds
+Sorting time: 0.004364 Seconds
+Sorting with head removed and Comparison time: 0 Seconds
+Finding Exact Clusters time: 0.000448 Seconds
+Blocking time: 0.003327 Seconds
+Edge generation Time: 0.04058 Seconds
+Find Approximate Clusters Time: 0.000749 Seconds
+Find Final Clusters Time: 0.000858 Seconds

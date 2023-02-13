@@ -33,7 +33,7 @@ int base = 26;
 int kmer = 3;
 int blockIDRange = pow(base,kmer);
 int extraEdges = 0;
-int numThreads = 6;
+int numThreads = 1;
 long long int totalCompRequired;
 std::mutex mtx;
 
@@ -246,16 +246,15 @@ void getFormattedDataFromCSV(string& file_path) {
     								});
 		result[1].erase(last, result[1].end()); //Remove junk left by remove_if() at the end of iterator
         boost::to_lower(result[1]);
-		auto first = std::remove_if(result[2].begin(), result[2].end(), [](auto ch) {
-        								return ::isdigit(ch) || ::ispunct(ch) || ::iswpunct(ch);
-    								});
-		result[2].erase(first, result[2].end()); //Remove junk left by remove_if() at the end of iterator
-        boost::to_lower(result[2]);
+		// auto first = std::remove_if(result[2].begin(), result[2].end(), [](auto ch) {
+        // 								return ::isdigit(ch) || ::ispunct(ch) || ::iswpunct(ch);
+    	// 							});
+		// result[2].erase(first, result[2].end()); //Remove junk left by remove_if() at the end of iterator
+        // boost::to_lower(result[2]);
 
 		vec.push_back(result[1]);
 		vec.push_back(result[2]);
 		vec.push_back(result[3]);
-		vec.push_back(result[4]);
         vec2D.push_back(vec);
     }
     records.close();
@@ -389,6 +388,10 @@ void getBlockingIDArray() {
 		blockingStr = vec1D[uniqueRecords[i].first*attributes + 1];
 		string temp_str = vec1D[uniqueRecords[i].first*attributes + 1];
 		while(blockingStr.size() < kmer) {
+			if (blockingStr.size() == 0) {
+				blockingStr = "a";
+				temp_str = "a";
+			}
 			blockingStr = blockingStr + temp_str;
 		}
 		for (int j = 0; j < blockingStr.size() - kmer + 1 ; ++j) {
@@ -521,61 +524,26 @@ void findBlockAssignments() {
 	}
 }
 
-// bool isLinkageOk(vector<string> &a, vector<string> &b, int threshold)
-// {
-//     //int dist = 0;
-// 	int name_dist = calculateBasicED(a[1], b[1], 1);
-//     //dist +=name_dist;
-//     if (name_dist <= threshold) {
-//         int dod_dist = calculateBasicED(a[2], b[2], 1);
-//         //dist+=dod_dist;   
-//         if (dod_dist <= threshold) {
-//             int dob_dist = calculateBasicED(a[3], b[3], 1);
-//             //dist+=dod_dist;
-//             // if(dist==0) {
-//             //     //Self edge?
-//             //     return false;
-//             // }
-//             if (dob_dist <= threshold) {
-//                 return true;
-//             } else {
-//                 return false;
-//             }
-//         } else {
-//             return false;
-//         }
-//     } else {
-//         return false;
-//     }
-// }
-
-
-// WHY NOT Adding the distances ??
 bool isLinkageOk(vector<string> &a, vector<string> &b, int threshold)
 {
     //int dist = 0;
-	int last_name_dist = calculateBasicED(a[1], b[1], 1);
+	int name_dist = calculateBasicED(a[1], b[1], 1);
     //dist +=name_dist;
-    if (last_name_dist <= threshold) {
-		int first_name_dist = calculateBasicED(a[2], b[2], 1);
-		if (first_name_dist <= threshold) {	
-			int dod_dist = calculateBasicED(a[3], b[3], 1);
-			//dist+=dod_dist;   
-			if (dod_dist <= threshold) {
-				int dob_dist = calculateBasicED(a[4], b[4], 1);
-				//dist+=dod_dist;
-				// if(dist==0) {
-				//     //Self edge?
-				//     return false;
-				// }
-				if (dob_dist <= threshold) {
-					return true;
-				} else {
-					return false;
-				}
-			} else {
-				return false;
-			}
+    if (name_dist <= threshold) {
+        int dod_dist = calculateBasicED(a[2], b[2], 1);
+        //dist+=dod_dist;   
+        if (dod_dist <= threshold) {
+            int dob_dist = calculateBasicED(a[3], b[3], 1);
+            //dist+=dod_dist;
+            // if(dist==0) {
+            //     //Self edge?
+            //     return false;
+            // }
+            if (dob_dist <= threshold) {
+                return true;
+            } else {
+                return false;
+            }
         } else {
             return false;
         }
@@ -583,6 +551,41 @@ bool isLinkageOk(vector<string> &a, vector<string> &b, int threshold)
         return false;
     }
 }
+
+
+// WHY NOT Adding the distances ??
+// bool isLinkageOk(vector<string> &a, vector<string> &b, int threshold)
+// {
+//     //int dist = 0;
+// 	int last_name_dist = calculateBasicED(a[1], b[1], 1);
+//     //dist +=name_dist;
+//     if (last_name_dist <= threshold) {
+// 		int first_name_dist = calculateBasicED(a[2], b[2], 1);
+// 		if (first_name_dist <= threshold) {	
+// 			int dod_dist = calculateBasicED(a[3], b[3], 1);
+// 			//dist+=dod_dist;   
+// 			if (dod_dist <= threshold) {
+// 				int dob_dist = calculateBasicED(a[4], b[4], 1);
+// 				//dist+=dod_dist;
+// 				// if(dist==0) {
+// 				//     //Self edge?
+// 				//     return false;
+// 				// }
+// 				if (dob_dist <= threshold) {
+// 					return true;
+// 				} else {
+// 					return false;
+// 				}
+// 			} else {
+// 				return false;
+// 			}
+//         } else {
+//             return false;
+//         }
+//     } else {
+//         return false;
+//     }
+// }
 
 void generateEdgilist(set<int>& blockRowArr)
 {
@@ -882,8 +885,8 @@ void *threadDriver(void* ptr) {
 }
 
 int main(int argc, char** argv) {
-    // string filePath = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/firstName_LastName_DS/";
-    string filePath = "/home/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/firstName_LastName_DS/";
+    // string filePath = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/";
+    string filePath = "/home/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/";
     string fileName = argv[1];
     filePath = filePath + argv[1];
     getFormattedDataFromCSV(filePath);
@@ -975,9 +978,9 @@ int main(int argc, char** argv) {
 
     // string out_file_path = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/data/";
     string out_file_path = "/home/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/data/";
-	string out_name1 = out_file_path + "out_single_linkage_"+ fileName + "_parallel_normal_blocking_lastName_6_threads";
-	string out_name2 = out_file_path + "out_complete_linkage_"+ fileName + "_parallel_normal_blocking_lastName_6_threads";
-	string stat_file_name = "stat_"+ fileName + "_parallel_normal_blocking_lastName_6_threads";
+	string out_name1 = out_file_path + "out_single_linkage_"+ fileName + "_parallel_normal_blocking_fullName_1_threads";
+	string out_name2 = out_file_path + "out_complete_linkage_"+ fileName + "_parallel_normal_blocking_fullName_1_threads";
+	string stat_file_name = "stat_"+ fileName + "_parallel_normal_blocking_fullName_1_threads";
 
 	writeFinalConnectedComponentToFile(out_name2);
 
