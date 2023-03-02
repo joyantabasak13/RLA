@@ -293,6 +293,85 @@ int calculateBasicED(string& str1, string& str2, int threshRem)
 	}
 }
 
+void radixSort(vector<pair<int, string> > &strDataArr){
+	int numRecords = strDataArr.size();
+	vector<pair<int, string>> tempArr(numRecords);
+	
+	for (int i = lenMax - 1; i >= 0; --i) {
+		vector<int> countArr(256, 0);
+		
+		for (int j = 0; j < numRecords; ++j) {
+			countArr[(strDataArr[j].second)[i]]++;
+		}
+		
+		for (int k = 1; k < 256; ++k)
+			countArr[k]	+= countArr[k - 1];
+		
+		for (int j = numRecords - 1; j >= 0; --j)
+			tempArr[--countArr[(strDataArr[j].second)[i]]]	= strDataArr[j];
+		
+		for (int j = 0; j < numRecords; ++j)
+			strDataArr[j]	= tempArr[j];
+	}
+}
+
+void printSortedRecords() {
+    for (int i =0; i< combinedData.size(); i++) {
+        if ((combinedData[i].second[0] == 'p') && (combinedData[i].second[1]== 'a')){
+            cout<< combinedData[i].first << " " << combinedData[i].second << endl;
+        }
+    }
+}
+
+int getKmerCount() {
+	long long int totalKmerCount = 0;
+	string blockingStr;
+	for (int i = 0; i < totalUniqueRecords; i++) {
+		totalKmerCount += vec1D[uniqueRecords[i].first*attributes + 1].size() - kmer + 1;
+	}
+	return totalKmerCount;
+}
+
+bool isLinkageOk(vector<string> &a, vector<string> &b, int threshold)
+{
+    //int dist = 0;
+	int name_dist = calculateBasicED(a[1], b[1], 1);
+    //dist +=name_dist;
+    if (name_dist <= threshold) {
+        int dod_dist = calculateBasicED(a[2], b[2], 1);
+        //dist+=dod_dist;   
+        if (dod_dist <= threshold) {
+            int dob_dist = calculateBasicED(a[3], b[3], 1);
+            //dist+=dod_dist;
+            // if(dist==0) {
+            //     //Self edge?
+            //     return false;
+            // }
+            if (dob_dist <= threshold) {
+                return true;
+            } else {
+                return false;
+            }
+        } else {
+            return false;
+        }
+    } else {
+        return false;
+    }
+}
+
+double getWallTime() {
+	struct timeval time;
+    if (gettimeofday(&time,NULL)){
+        //  Handle error
+        return 0;
+    }
+    return (double)time.tv_sec + (double)time.tv_usec * .000001;
+}
+
+
+// I/O Functions
+
 void getFormattedDataFromCSV(string& file_path) {
     string line;
     ifstream records(file_path);
@@ -336,6 +415,42 @@ void getFormattedDataFromCSV(string& file_path) {
     cout<< "Attributes: "<<attributes << endl;
 }
 
+void writeApproximateConnectedComponentToFile(string& result_file_name) {
+	ofstream out_file;
+    out_file.open(result_file_name);
+
+	for (auto const& p : approxConnectedComponents) {
+        for (int i=0; i<p.second.size(); i++) {
+			for (int j=0; j<exactmatches[p.second[i]].size(); j++) {
+				out_file<< vec2D[uniqueRecords[p.second[i]].first][0] << ",";
+			}
+        }
+        out_file<< "\n";
+	}
+	out_file.close();
+}
+
+void writeFinalConnectedComponentToFile(string& result_file_name) {
+	ofstream out_file;
+    out_file.open(result_file_name);
+
+	for(int i = 0; i< finalConnectedComponents.size(); i++) {
+        //cout<< "Cluster Size: "<< finalConnectedComponents[i].size() << endl;
+		for(int j = 0; j< finalConnectedComponents[i].size(); j++) {
+            //cout<< "Num Copies :" << exactmatches[finalConnectedComponents[i][j]].size() << endl;
+            for(int k=0; k< exactmatches[finalConnectedComponents[i][j]].size(); k++) {
+                //cout<< vec2D[exactmatches[finalConnectedComponents[i][j]][0]][0] << endl;
+                out_file << vec2D[uniqueRecords[finalConnectedComponents[i][j]].first][0] << ",";
+            }
+		}
+        out_file<< "\n";
+	}
+	out_file.close();
+}
+
+
+// Deduplication and Data preprocessing
+
 void getCombinedData() {
 	string strSample(50, '0');
 	combinedData.resize(totalRecords);
@@ -356,36 +471,6 @@ void getCombinedData() {
 		if(lenDiff > 0)
 			combinedData[i].second	+= strSample.substr(0, lenDiff);
 	}
-}
-
-void radixSort(vector<pair<int, string> > &strDataArr){
-	int numRecords = strDataArr.size();
-	vector<pair<int, string>> tempArr(numRecords);
-	
-	for (int i = lenMax - 1; i >= 0; --i) {
-		vector<int> countArr(256, 0);
-		
-		for (int j = 0; j < numRecords; ++j) {
-			countArr[(strDataArr[j].second)[i]]++;
-		}
-		
-		for (int k = 1; k < 256; ++k)
-			countArr[k]	+= countArr[k - 1];
-		
-		for (int j = numRecords - 1; j >= 0; --j)
-			tempArr[--countArr[(strDataArr[j].second)[i]]]	= strDataArr[j];
-		
-		for (int j = 0; j < numRecords; ++j)
-			strDataArr[j]	= tempArr[j];
-	}
-}
-
-void printSortedRecords() {
-    for (int i =0; i< combinedData.size(); i++) {
-        if ((combinedData[i].second[0] == 'p') && (combinedData[i].second[1]== 'a')){
-            cout<< combinedData[i].first << " " << combinedData[i].second << endl;
-        }
-    }
 }
 
 // Do exact clustering from lexically sorted vector of int,string pair
@@ -418,14 +503,7 @@ void getUniqueEntries() {
     }
 }
 
-int getKmerCount() {
-	long long int totalKmerCount = 0;
-	string blockingStr;
-	for (int i = 0; i < totalUniqueRecords; i++) {
-		totalKmerCount += vec1D[uniqueRecords[i].first*attributes + 1].size() - kmer + 1;
-	}
-	return totalKmerCount;
-}
+// Blocking Functions
 
 void getBlockingIDArray() {
 	int totalKMers = getKmerCount();
@@ -497,6 +575,8 @@ void removeRedundentBlockingID() {
 	blockingIDList = tempArr;
 	cout << "Total Length: "<< numRecords << " total copies: "<< copy_count << " Total Unique Blocks: "<< totalUniqueBlocks << endl;
 }
+
+// Load Balancing Functions
 
 void findBlockBoundaries() {
 	//just keep starting ind and range.
@@ -576,69 +656,7 @@ void findBlockAssignments() {
 	}
 }
 
-bool isLinkageOk(vector<string> &a, vector<string> &b, int threshold)
-{
-    //int dist = 0;
-	int name_dist = calculateBasicED(a[1], b[1], 1);
-    //dist +=name_dist;
-    if (name_dist <= threshold) {
-        int dod_dist = calculateBasicED(a[2], b[2], 1);
-        //dist+=dod_dist;   
-        if (dod_dist <= threshold) {
-            int dob_dist = calculateBasicED(a[3], b[3], 1);
-            //dist+=dod_dist;
-            // if(dist==0) {
-            //     //Self edge?
-            //     return false;
-            // }
-            if (dob_dist <= threshold) {
-                return true;
-            } else {
-                return false;
-            }
-        } else {
-            return false;
-        }
-    } else {
-        return false;
-    }
-}
-
-
-// WHY NOT Adding the distances ??
-// bool isLinkageOk(vector<string> &a, vector<string> &b, int threshold)
-// {
-//     //int dist = 0;
-// 	int last_name_dist = calculateBasicED(a[1], b[1], 1);
-//     //dist +=name_dist;
-//     if (last_name_dist <= threshold) {
-// 		int first_name_dist = calculateBasicED(a[2], b[2], 1);
-// 		if (first_name_dist <= threshold) {	
-// 			int dod_dist = calculateBasicED(a[3], b[3], 1);
-// 			//dist+=dod_dist;   
-// 			if (dod_dist <= threshold) {
-// 				int dob_dist = calculateBasicED(a[4], b[4], 1);
-// 				//dist+=dod_dist;
-// 				// if(dist==0) {
-// 				//     //Self edge?
-// 				//     return false;
-// 				// }
-// 				if (dob_dist <= threshold) {
-// 					return true;
-// 				} else {
-// 					return false;
-// 				}
-// 			} else {
-// 				return false;
-// 			}
-//         } else {
-//             return false;
-//         }
-//     } else {
-//         return false;
-//     }
-// }
-
+// Connected Component Extraction And Revision
 
 //  find clusters as connected components in a graph where edges are connection among records 
 //  and vertices are record index
@@ -653,21 +671,6 @@ void findConnComp()
 	}
 	
     cout<< "#Connected Components: " << approxConnectedComponents.size()<<endl;
-}
-
-void writeApproximateConnectedComponentToFile(string& result_file_name) {
-	ofstream out_file;
-    out_file.open(result_file_name);
-
-	for (auto const& p : approxConnectedComponents) {
-        for (int i=0; i<p.second.size(); i++) {
-			for (int j=0; j<exactmatches[p.second[i]].size(); j++) {
-				out_file<< vec2D[uniqueRecords[p.second[i]].first][0] << ",";
-			}
-        }
-        out_file<< "\n";
-	}
-	out_file.close();
 }
 
 void findFinalConnectedComp(int intraCompDist) {
@@ -723,32 +726,7 @@ void findFinalConnectedComp(int intraCompDist) {
     cout<< "Total Components: "<< finalConnectedComponents.size()<<endl;
 }
 
-void writeFinalConnectedComponentToFile(string& result_file_name) {
-	ofstream out_file;
-    out_file.open(result_file_name);
-
-	for(int i = 0; i< finalConnectedComponents.size(); i++) {
-        //cout<< "Cluster Size: "<< finalConnectedComponents[i].size() << endl;
-		for(int j = 0; j< finalConnectedComponents[i].size(); j++) {
-            //cout<< "Num Copies :" << exactmatches[finalConnectedComponents[i][j]].size() << endl;
-            for(int k=0; k< exactmatches[finalConnectedComponents[i][j]].size(); k++) {
-                //cout<< vec2D[exactmatches[finalConnectedComponents[i][j]][0]][0] << endl;
-                out_file << vec2D[uniqueRecords[finalConnectedComponents[i][j]].first][0] << ",";
-            }
-		}
-        out_file<< "\n";
-	}
-	out_file.close();
-}
-
-double getWallTime() {
-	struct timeval time;
-    if (gettimeofday(&time,NULL)){
-        //  Handle error
-        return 0;
-    }
-    return (double)time.tv_sec + (double)time.tv_usec * .000001;
-}
+// Threading related Functions
 
 void mergeEdges() {
 	int mainTid = numThreads-1;
@@ -809,8 +787,8 @@ void *threadDriver(void* ptr) {
 }
 
 int main(int argc, char** argv) {
-    // string filePath = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/";
-    string filePath = "/home/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/";
+    string filePath = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/";
+    // string filePath = "/home/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/";
     string fileName = argv[1];
     filePath = filePath + argv[1];
     getFormattedDataFromCSV(filePath);
@@ -910,8 +888,8 @@ int main(int argc, char** argv) {
 	cout<< "Get Total Wall Time "<< (double)(allDone_pX_Wt - currWallT_p0) << endl;
 
 	// Outputs
-    // string out_file_path = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/data/";
-    string out_file_path = "/home/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/data/";
+    string out_file_path = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/data/";
+    // string out_file_path = "/home/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/data/";
 	string out_name1 = out_file_path + "out_single_linkage_"+ fileName + "_pnb_fullBlocking_unionFind_1_threads";
 	string out_name2 = out_file_path + "out_complete_linkage_"+ fileName + "_pnb_fullBlocking_unionFind_1_threads";
 	string stat_file_name = "stat_"+ fileName + "_pnb_fullBlocking_unionFind_1_threads";

@@ -40,6 +40,17 @@ vector<pair<int, string> > combinedData;
 vector<vector<int> > edgeArr;
 set<pair<int, int> > set_of_edges;
 
+
+/* 	Organization of this Code File:
+*	Utility Functions (Distance finding, Printing datastructures etc.)
+*	I/O Functions (Read, Write)
+*	Deduplication & Input Processing Functions
+*	Blocking Function & Sorting for Superblocking
+*	Edge Generation and connected component generation
+*/
+
+// Utility Functions
+
 // helps edit distance calculation in calculateBasicED()
 int calculateBasicED2(string& str1, string& str2, int threshRem)
 {
@@ -214,81 +225,68 @@ int calculateBasicED(string& str1, string& str2, int threshRem)
 	}
 }
 
-void getFormattedDataFromCSV(string& file_path) {
-    string line;
-    ifstream records(file_path);
-	cout<< "reading data" << endl;
-    int ind = 0;
-    while (getline (records, line)) {
-		// cout<< line << endl;
-        vector<string> result;
-        boost::split(result, line, boost::is_any_of(","));
-        vector<string> vec;
-        vec.push_back(result[0]);
-
-		//Remove digits and alphanumerics from name
-		auto last = std::remove_if(result[1].begin(), result[1].end(), [](auto ch) {
-        								return ::isdigit(ch) || ::ispunct(ch) || ::iswpunct(ch);
-    								});
-		result[1].erase(last, result[1].end()); //Remove junk left by remove_if() at the end of iterator
-        boost::to_lower(result[1]);
-		auto first = std::remove_if(result[2].begin(), result[2].end(), [](auto ch) {
-        								return ::isdigit(ch) || ::ispunct(ch) || ::iswpunct(ch);
-    								});
-		result[2].erase(first, result[2].end()); //Remove junk left by remove_if() at the end of iterator
-        boost::to_lower(result[2]);
-		// Delete third for ahmed's dataset
-		// auto third = std::remove_if(result[3].begin(), result[3].end(), [](auto ch) {
-        // 								return ::isdigit(ch) || ::ispunct(ch) || ::iswpunct(ch);
-    	// 							});
-		// result[3].erase(third, result[3].end()); //Remove junk left by remove_if() at the end of iterator
-        // boost::to_lower(result[3]);
-
-		vec.push_back(result[2]);
-		vec.push_back(result[1]);
-		vec.push_back(result[3]);
-		vec.push_back(result[4]);
-        vec2D.push_back(vec);
-    }
-    records.close();
-
-    vec1D.resize(vec2D[0].size()*vec2D.size());
-
-    for (size_t i = 0; i < vec2D.size(); i++)
-    {
-        for(size_t j = 0; j< vec2D[0].size(); j++) {
-            vec1D[i*vec2D[0].size()+j] = vec2D[i][j];
+// Remove later
+bool isLinkageOk(vector<string> &a, vector<string> &b, int threshold)
+{
+    //int dist = 0;
+	int name_dist = calculateBasicED(a[1], b[1], 1);
+    //dist +=name_dist;
+    if (name_dist <= threshold) {
+        int dod_dist = calculateBasicED(a[2], b[2], 1);
+        //dist+=dod_dist;   
+        if (dod_dist <= threshold) {
+            int dob_dist = calculateBasicED(a[3], b[3], 1);
+            //dist+=dod_dist;
+            // if(dist==0) {
+            //     //Self edge?
+            //     return false;
+            // }
+            if (dob_dist <= threshold) {
+                return true;
+            } else {
+                return false;
+            }
+        } else {
+            return false;
         }
+    } else {
+        return false;
     }
-    attributes = vec2D[0].size();
-    cout<< "Attributes: "<<attributes << endl;
 }
 
-void getCombinedData() {
-	string strSample(50, '0');
-	combinedData.resize(totalRecords);
-	int max = 0;
-	for (int i = 0; i< vec2D.size(); i++) {
-		pair<int, string> p;
-		p.first = i;
-		string s = "";
-		for(int j = 1; j<attributes; j++){
-			s = s+ vec2D[i][j];
-		}
-		p.second = s;
-		combinedData[i]=p;
-		if (max<p.second.size()) {
-			max = p.second.size();
-		}
-	}
-	lenMax = max;
-	// Padding to make all characters same size
-    for (int i = 0; i < totalRecords; ++i) {
-		int lenDiff		= lenMax - combinedData[i].second.length();
-		if(lenDiff > 0)
-			combinedData[i].second	+= strSample.substr(0, lenDiff);
-	}
-}
+// WHY NOT Adding the distances ??
+// bool isLinkageOk(vector<string> &a, vector<string> &b, int threshold)
+// {
+//     //int dist = 0;
+// 	int last_name_dist = calculateBasicED(a[1], b[1], 1);
+//     //dist +=name_dist;
+//     if (last_name_dist <= threshold) {
+// 		int first_name_dist = calculateBasicED(a[2], b[2], 1);
+// 		if (first_name_dist <= threshold) {	
+// 			int dod_dist = calculateBasicED(a[3], b[3], 1);
+// 			//dist+=dod_dist;   
+// 			if (dod_dist <= threshold) {
+// 				int dob_dist = calculateBasicED(a[4], b[4], 1);
+// 				//dist+=dod_dist;
+// 				// if(dist==0) {
+// 				//     //Self edge?
+// 				//     return false;
+// 				// }
+// 				if (dob_dist <= threshold) {
+// 					return true;
+// 				} else {
+// 					return false;
+// 				}
+// 			} else {
+// 				return false;
+// 			}
+//         } else {
+//             return false;
+//         }
+//     } else {
+//         return false;
+//     }
+// }
 
 void radixSort(vector<pair<int, string> > &strDataArr){
 	int numRecords = strDataArr.size();
@@ -318,6 +316,151 @@ void printSortedRecords() {
             cout<< combinedData[i].first << " " << combinedData[i].second << endl;
         }
     }
+}
+
+void printEdges() {
+    ofstream log_file;
+	log_file.open("log_file");
+    BOOST_FOREACH(pair p, set_of_edges) {
+        string U	= uniqueRecords[p.first].second;
+		string V	= uniqueRecords[p.second].second;
+        log_file<< "U: "<< p.first << " V: "<< p.second <<endl;
+        log_file<< "U: "<< U <<endl;
+        log_file<< "V: "<< V << endl; 
+        log_file<< endl;
+    }
+    log_file.close();
+}
+
+void printApproximateCluster() {
+    int count = 0; 
+    for (auto const& p : approxConnectedComponents) {
+        for (int i=0; i<p.second.size(); i++) {
+            cout<< uniqueRecords[p.second[i]].second << endl;
+        }
+        cout<< endl;
+        count++;
+        if (count>5) break;
+    }
+}
+
+void printFinalConnectedClusters() {
+    for(int i=0; i< 2; i++) {
+        for(int j=0; j< finalConnectedComponents[i].size(); j++) {
+            cout<< vec2D[uniqueRecords[finalConnectedComponents[i][j]].first][0] << endl;
+            cout<< exactmatches[finalConnectedComponents[i][j]].size()<<endl;
+            for(int k = 0; k<exactmatches[finalConnectedComponents[i][j]].size(); k++) {
+                cout<< exactmatches[finalConnectedComponents[i][j]][k] <<endl;
+            }
+        }
+        cout<< endl;
+    }
+}
+
+void getCompPairCount() {
+	long long int totalPairs = 0;
+	for (int i = 0; i< block_list.size(); i++) {
+		long long int curBlockSize = block_list[i].size();
+		totalPairs = totalPairs + (curBlockSize*(curBlockSize-1))/2;
+	}
+	cout<< "Total number of possible pairs: "<< totalPairs << endl;
+}
+
+// I/O Functions
+
+void getFormattedDataFromCSV(string& file_path) {
+    string line;
+    ifstream records(file_path);
+	cout<< "reading data" << endl;
+    int ind = 0;
+    while (getline (records, line)) {
+		// cout<< line << endl;
+        vector<string> result;
+        boost::split(result, line, boost::is_any_of(","));
+        vector<string> vec;
+        vec.push_back(result[0]);
+
+		//Remove digits and alphanumerics from name
+		auto last = std::remove_if(result[1].begin(), result[1].end(), [](auto ch) {
+        								return ::isdigit(ch) || ::ispunct(ch) || ::iswpunct(ch);
+    								});
+		result[1].erase(last, result[1].end()); //Remove junk left by remove_if() at the end of iterator
+        boost::to_lower(result[1]);
+		// auto first = std::remove_if(result[2].begin(), result[2].end(), [](auto ch) {
+        // 								return ::isdigit(ch) || ::ispunct(ch) || ::iswpunct(ch);
+    	// 							});
+		// result[2].erase(first, result[2].end()); //Remove junk left by remove_if() at the end of iterator
+        // boost::to_lower(result[2]);
+		// Delete third for ahmed's dataset
+		// auto third = std::remove_if(result[3].begin(), result[3].end(), [](auto ch) {
+        // 								return ::isdigit(ch) || ::ispunct(ch) || ::iswpunct(ch);
+    	// 							});
+		// result[3].erase(third, result[3].end()); //Remove junk left by remove_if() at the end of iterator
+        // boost::to_lower(result[3]);
+
+		vec.push_back(result[1]);
+		vec.push_back(result[2]);
+		vec.push_back(result[3]);
+        vec2D.push_back(vec);
+    }
+    records.close();
+
+    vec1D.resize(vec2D[0].size()*vec2D.size());
+
+    for (size_t i = 0; i < vec2D.size(); i++)
+    {
+        for(size_t j = 0; j< vec2D[0].size(); j++) {
+            vec1D[i*vec2D[0].size()+j] = vec2D[i][j];
+        }
+    }
+    attributes = vec2D[0].size();
+    cout<< "Attributes: "<<attributes << endl;
+}
+
+void writeFinalConnectedComponentToFile(string& result_file_name) {
+	ofstream out_file;
+    out_file.open(result_file_name);
+
+	for(int i = 0; i< finalConnectedComponents.size(); i++) {
+        //cout<< "Cluster Size: "<< finalConnectedComponents[i].size() << endl;
+		for(int j = 0; j< finalConnectedComponents[i].size(); j++) {
+            //cout<< "Num Copies :" << exactmatches[finalConnectedComponents[i][j]].size() << endl;
+            for(int k=0; k< exactmatches[finalConnectedComponents[i][j]].size(); k++) {
+                //cout<< vec2D[exactmatches[finalConnectedComponents[i][j]][0]][0] << endl;
+                out_file << vec2D[uniqueRecords[finalConnectedComponents[i][j]].first][0] << ",";
+            }
+		}
+        out_file<< "\n";
+	}
+	out_file.close();
+}
+
+// Deduplication
+
+void getCombinedData() {
+	string strSample(50, '0');
+	combinedData.resize(totalRecords);
+	int max = 0;
+	for (int i = 0; i< vec2D.size(); i++) {
+		pair<int, string> p;
+		p.first = i;
+		string s = "";
+		for(int j = 1; j<attributes; j++){
+			s = s+ vec2D[i][j];
+		}
+		p.second = s;
+		combinedData[i]=p;
+		if (max<p.second.size()) {
+			max = p.second.size();
+		}
+	}
+	lenMax = max;
+	// Padding to make all characters same size
+    for (int i = 0; i < totalRecords; ++i) {
+		int lenDiff		= lenMax - combinedData[i].second.length();
+		if(lenDiff > 0)
+			combinedData[i].second	+= strSample.substr(0, lenDiff);
+	}
 }
 
 // Do exact clustering from lexically sorted vector of int,string pair
@@ -350,41 +493,8 @@ void getUniqueEntries() {
     }
 }
 
-void doSortedComp() {
-	headlessCopies.resize(2*totalUniqueRecords);
-	for(int i=0; i< uniqueRecords.size(); i++) { 
-		headlessCopies[i].first = i;
-		headlessCopies[i].second = uniqueRecords[i].second;
-		headlessCopies[totalUniqueRecords+i].first = i;
-		headlessCopies[totalUniqueRecords+i].second = uniqueRecords[i].second.substr(1,uniqueRecords[i].second.size()-1) + '0';
-		// cout<< uniqueRecords[i].second << endl;
-		// cout<< headlessCopies[totalUniqueRecords+i].second << endl;
-	}
-	radixSort(headlessCopies);
-	for (int i = 1; i < headlessCopies.size(); i++) {
-		// cout<< headlessCopies[i].second << endl;
-		if (headlessCopies[i-1].second.compare(headlessCopies[i].second) == 0) {
-			// cout<< headlessCopies[i-1].first << " " << headlessCopies[i-1].second << endl;
-			// cout<< headlessCopies[i].first << " " << headlessCopies[i].second << endl;
-			pair<int, int> edge_pair;
-            int i_th_record_id = headlessCopies[i-1].first;
-            int j_th_record_id = headlessCopies[i].first;
-            if (i_th_record_id < j_th_record_id) {
-                edge_pair.first = i_th_record_id;
-                edge_pair.second = j_th_record_id;
-            } else {
-                edge_pair.first = j_th_record_id;
-                edge_pair.second = i_th_record_id;
-            }
-			
-            if (!set_of_edges.count(edge_pair)) {
-                set_of_edges.insert(edge_pair);
-				extraEdges++;
-            }
-		}
-	}
-	cout<< "Edges Added: "<< extraEdges << endl;
-}
+// Blocking Functions
+
 
 void doNormalBlocking() {
 	int base = 26;
@@ -482,68 +592,45 @@ void doSuperBlocking() {
     cout<< "Expected blocks:" << total_str_size - (kmer-1)*totalUniqueRecords << endl;
 }
 
-// Remove later
-bool isLinkageOk_fullname_ds(vector<string> &a, vector<string> &b, int threshold)
-{
-    //int dist = 0;
-	int name_dist = calculateBasicED(a[1], b[1], 1);
-    //dist +=name_dist;
-    if (name_dist <= threshold) {
-        int dod_dist = calculateBasicED(a[2], b[2], 1);
-        //dist+=dod_dist;   
-        if (dod_dist <= threshold) {
-            int dob_dist = calculateBasicED(a[3], b[3], 1);
-            //dist+=dod_dist;
-            // if(dist==0) {
-            //     //Self edge?
-            //     return false;
-            // }
-            if (dob_dist <= threshold) {
-                return true;
+// Sorted Comparisions in case of superblocking
+
+void doSortedComp() {
+	headlessCopies.resize(2*totalUniqueRecords);
+	for(int i=0; i< uniqueRecords.size(); i++) { 
+		headlessCopies[i].first = i;
+		headlessCopies[i].second = uniqueRecords[i].second;
+		headlessCopies[totalUniqueRecords+i].first = i;
+		headlessCopies[totalUniqueRecords+i].second = uniqueRecords[i].second.substr(1,uniqueRecords[i].second.size()-1) + '0';
+		// cout<< uniqueRecords[i].second << endl;
+		// cout<< headlessCopies[totalUniqueRecords+i].second << endl;
+	}
+	radixSort(headlessCopies);
+	for (int i = 1; i < headlessCopies.size(); i++) {
+		// cout<< headlessCopies[i].second << endl;
+		if (headlessCopies[i-1].second.compare(headlessCopies[i].second) == 0) {
+			// cout<< headlessCopies[i-1].first << " " << headlessCopies[i-1].second << endl;
+			// cout<< headlessCopies[i].first << " " << headlessCopies[i].second << endl;
+			pair<int, int> edge_pair;
+            int i_th_record_id = headlessCopies[i-1].first;
+            int j_th_record_id = headlessCopies[i].first;
+            if (i_th_record_id < j_th_record_id) {
+                edge_pair.first = i_th_record_id;
+                edge_pair.second = j_th_record_id;
             } else {
-                return false;
+                edge_pair.first = j_th_record_id;
+                edge_pair.second = i_th_record_id;
             }
-        } else {
-            return false;
-        }
-    } else {
-        return false;
-    }
+			
+            if (!set_of_edges.count(edge_pair)) {
+                set_of_edges.insert(edge_pair);
+				extraEdges++;
+            }
+		}
+	}
+	cout<< "Edges Added: "<< extraEdges << endl;
 }
 
-// WHY NOT Adding the distances ??
-bool isLinkageOk(vector<string> &a, vector<string> &b, int threshold)
-{
-    //int dist = 0;
-	int last_name_dist = calculateBasicED(a[1], b[1], 1);
-    //dist +=name_dist;
-    if (last_name_dist <= threshold) {
-		int first_name_dist = calculateBasicED(a[2], b[2], 1);
-		if (first_name_dist <= threshold) {	
-			int dod_dist = calculateBasicED(a[3], b[3], 1);
-			//dist+=dod_dist;   
-			if (dod_dist <= threshold) {
-				int dob_dist = calculateBasicED(a[4], b[4], 1);
-				//dist+=dod_dist;
-				// if(dist==0) {
-				//     //Self edge?
-				//     return false;
-				// }
-				if (dob_dist <= threshold) {
-					return true;
-				} else {
-					return false;
-				}
-			} else {
-				return false;
-			}
-        } else {
-            return false;
-        }
-    } else {
-        return false;
-    }
-}
+// Edge Generation and Connected Component Extraction
 
 void generateEdgilist(set<int>& blockRowArr)
 {
@@ -584,20 +671,6 @@ void generateEdgilist(set<int>& blockRowArr)
 
 	dataArr.clear();
     uniqueIndices.clear();
-}
-
-void printEdges() {
-    ofstream log_file;
-	log_file.open("log_file");
-    BOOST_FOREACH(pair p, set_of_edges) {
-        string U	= uniqueRecords[p.first].second;
-		string V	= uniqueRecords[p.second].second;
-        log_file<< "U: "<< p.first << " V: "<< p.second <<endl;
-        log_file<< "U: "<< U <<endl;
-        log_file<< "V: "<< V << endl; 
-        log_file<< endl;
-    }
-    log_file.close();
 }
 
 void createClusterEdgeList()
@@ -668,18 +741,6 @@ void findConnComp()
     cout<< "#Total Non Root Nodes in graph: " << componentsInClusters << endl;
 }
 
-void printApproximateCluster() {
-    int count = 0; 
-    for (auto const& p : approxConnectedComponents) {
-        for (int i=0; i<p.second.size(); i++) {
-            cout<< uniqueRecords[p.second[i]].second << endl;
-        }
-        cout<< endl;
-        count++;
-        if (count>5) break;
-    }
-}
-
 void findFinalConnectedComp(int intraCompDist) {
     int totalNodes = 0;
     int pairsAccessed = 0;
@@ -740,37 +801,6 @@ void findFinalConnectedComp(int intraCompDist) {
     cout<< "Total Components: "<< finalConnectedComponents.size()<<endl;
 }
 
-void printFinalConnectedClusters() {
-    for(int i=0; i< 2; i++) {
-        for(int j=0; j< finalConnectedComponents[i].size(); j++) {
-            cout<< vec2D[uniqueRecords[finalConnectedComponents[i][j]].first][0] << endl;
-            cout<< exactmatches[finalConnectedComponents[i][j]].size()<<endl;
-            for(int k = 0; k<exactmatches[finalConnectedComponents[i][j]].size(); k++) {
-                cout<< exactmatches[finalConnectedComponents[i][j]][k] <<endl;
-            }
-        }
-        cout<< endl;
-    }
-}
-
-void writeFinalConnectedComponentToFile(string& result_file_name) {
-	ofstream out_file;
-    out_file.open(result_file_name);
-
-	for(int i = 0; i< finalConnectedComponents.size(); i++) {
-        //cout<< "Cluster Size: "<< finalConnectedComponents[i].size() << endl;
-		for(int j = 0; j< finalConnectedComponents[i].size(); j++) {
-            //cout<< "Num Copies :" << exactmatches[finalConnectedComponents[i][j]].size() << endl;
-            for(int k=0; k< exactmatches[finalConnectedComponents[i][j]].size(); k++) {
-                //cout<< vec2D[exactmatches[finalConnectedComponents[i][j]][0]][0] << endl;
-                out_file << vec2D[uniqueRecords[finalConnectedComponents[i][j]].first][0] << ",";
-            }
-		}
-        out_file<< "\n";
-	}
-	out_file.close();
-}
-
 
 int main(int argc, char** argv) {
     string filePath = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/";
@@ -800,14 +830,15 @@ int main(int argc, char** argv) {
     cout<< "My Exact Clustering time "<< findingExact_t << endl;
 
 	clock_t currTS3_1	= clock();
-	doSortedComp();
+	// doSortedComp();
 	double sortingComp_t	= (double)(clock() - currTS3_1) / CLOCKS_PER_SEC;
 	cout<< "Sorting and Comparision time "<< sortingComp_t << endl;
 
 
     clock_t currTS4	= clock();
-    doSuperBlocking();
-	// doNormalBlocking();
+    // doSuperBlocking();
+	doNormalBlocking();
+	getCompPairCount();
     double blocking_t	= (double)(clock() - currTS4) / CLOCKS_PER_SEC;
     cout<< "Blocking time "<< blocking_t << endl;
 	clock_t currTS5	= clock();
