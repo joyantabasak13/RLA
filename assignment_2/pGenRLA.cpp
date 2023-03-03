@@ -58,7 +58,6 @@ class UnionFind {
   public:
     int numSets;
 	vector<int> parentInd;
-	vector<int> setSize;
 
     UnionFind() { // Constructor with parameters
 		numSets = 0;
@@ -67,17 +66,15 @@ class UnionFind {
 	void setVariable(int numRecords) {
 		this->numSets = numRecords;
       	this->parentInd.resize(numRecords);
-		this->setSize.resize(numRecords);
 		for (int i = 0; i < numRecords; i++)
 		{
-			this->parentInd[i] = i;
-			this->setSize[i] = -1;
+			this->parentInd[i] = -1;
 		}
 	}
 
 	int find(int recID) {
 		int root = recID;
-    	while (root != parentInd[root]){
+    	while (parentInd[root] >= 0){
 			root = parentInd[root];
 		}
 		while (recID != root) { 
@@ -94,14 +91,14 @@ class UnionFind {
 		if (i == j) {
 			return;
 		}
-		// make larger root point to smaller one
-		if (setSize[i] > setSize[j]) { 
+		// make smaller root point to larger one
+		if (parentInd[i] > parentInd[j]) { 
+			parentInd[j] += parentInd[i]; 
 			parentInd[i] = j; 
-			setSize[j] += setSize[i]; 
 		}
 		else { 
-			parentInd[j] = i; 
-			setSize[i] += setSize[j]; 
+			parentInd[i] += parentInd[j];
+			parentInd[j] = i;
 		}
 		numSets--;
 	}

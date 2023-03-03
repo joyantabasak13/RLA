@@ -1,6 +1,6 @@
-g++ -std=c++17 -O3 -I /usr/local/boost_1_80_0/ -o prla_rec_normalBlocking_unionFind prla_rec_normalBlocking_unionFind.cpp
+g++ -std=c++17 -O3 -I /usr/local/boost_1_80_0/ -o pGenRLA pGenRLA.cpp
 
-./prla_rec_normalBlocking_unionFind ds7_1M
+./pGenRLA ds1_50k
 
 # g++ -std=c++17 -O3 -I /usr/local/boost_1_80_0/ -o pGenRLA pGenRLA.cpp
 
