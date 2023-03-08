@@ -1,10 +1,10 @@
 g++ -std=c++17 -O3 -I /usr/local/boost_1_80_0/ -o pGenRLA pGenRLA.cpp
 
-./pGenRLA ds1_50k
+./pGenRLA simulated_records_original_80000_records.csv
 
-# g++ -std=c++17 -O3 -I /usr/local/boost_1_80_0/ -o pGenRLA pGenRLA.cpp
+# g++ -std=c++17 -O3 -I /usr/local/boost_1_80_0/ -o prla_normalBlocking_unionFind prla_normalBlocking_unionFind.cpp
 
-# ./pGenRLA simulated_records_10000.csv
+# ./prla_normalBlocking_unionFind simulated_records_original_1000_records.csv
 
 # g++ -std=c++17 -O3 -I /usr/local/boost_1_80_0/ -o prla_superBlocking prla_superBlocking.cpp
 

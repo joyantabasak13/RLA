@@ -144,11 +144,11 @@ def main():
     blocking_edit_2_with_non_blocking_edit_1_tag = '22'
 
     # get original records
-    target_number_of_original_records = 1000
+    target_number_of_original_records = 80000
     original_records = [['0001', 'joyantabasak', '03181996', '03181895']]
     unique_records = get_unique_records("unique_records.csv")
     original_records = get_original_records(unique_records, target_number_of_original_records)
-    print(original_records)
+    # print(original_records)
 
     # add tag to original records
     original_tagged_records = tag_original_records(original_records.copy(), original_tag)
@@ -159,7 +159,7 @@ def main():
         simulated_records.append(record.copy())
 
     # generate exact copies
-    num_exact_copy = 2
+    num_exact_copy = 0
     exact_record_copies = generate_exact_copies(original_tagged_records, num_exact_copy, exact_copy_tag)
 
     for copy_record in exact_record_copies:
@@ -186,10 +186,10 @@ def main():
     incremental_block_attr_indices = [1]
     incremental_block_attr_edit_distance_1_records = generate_block_attr_edited_records(block_attr_edit_distance_1_records, incremental_block_attr_dist, incremental_block_attr_indices, incremental_blocking_edit_1_tag)
 
-    for edited_records in incremental_block_attr_edit_distance_1_records:
-        simulated_records.append(edited_records.copy())
+    # for edited_records in incremental_block_attr_edit_distance_1_records:
+    #     simulated_records.append(edited_records.copy())
 
-    # generate records with 2 edit distance
+    # generate records with 2 edit distance in block field
     block_attr_dist = 2
     block_attr_indices = [1]
     block_attr_edit_distance_2_records = generate_block_attr_edited_records(original_tagged_records.copy(),
@@ -205,8 +205,8 @@ def main():
                                                                             block_attr_dist, block_attr_indices,
                                                                             blocking_edit_1_with_non_blocking_edit_1_tag)
 
-    for edited_records in block_attr_edit_distance_1_non_blocking_edit_1_records:
-        simulated_records.append(edited_records.copy())
+    # for edited_records in block_attr_edit_distance_1_non_blocking_edit_1_records:
+    #     simulated_records.append(edited_records.copy())
 
     # generate records with 1 incremental blocking edit distance over 1 blocking and 1 non-bloking distances
     block_attr_dist = 1
@@ -216,8 +216,8 @@ def main():
         block_attr_dist, block_attr_indices,
         incremental_blocking_edit_1_with_non_blocking_edit_1_tag)
 
-    for edited_records in incremental_block_attr_edit_distance_1_non_blocking_edit_1_records:
-        simulated_records.append(edited_records.copy())
+    # for edited_records in incremental_block_attr_edit_distance_1_non_blocking_edit_1_records:
+    #     simulated_records.append(edited_records.copy())
 
     # generate records with 2 edit distance in blocking attr over 1 edit distances in non-blocking fields
     block_attr_dist = 2
@@ -238,7 +238,7 @@ def main():
     df = pd.DataFrame(simulated_records)
     df = df.sample(frac=1).reset_index(drop=True)
     print(len(df))
-    filename = "simulated_records_" + str(len(df)) + ".csv"
+    filename = "simulated_records_original_" + str(target_number_of_original_records) + "_records.csv"
     df.to_csv(filename, index=False, header=False)
 
 

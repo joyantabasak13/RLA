@@ -24,7 +24,9 @@ using namespace std;
 
 int threshold = 99;
 int blockingDistanceThreshold = 1;
+int blockingDistanceThresholdForClusteredRecords = 2;
 int nonBlockingDistanceThreshold = 2;
+int clusterSizeThreshold = 2;
 int totalRecords;
 int lenMax;
 int totalUniqueRecords;
@@ -34,15 +36,20 @@ int attributes;
 int base = 26;
 int kmer = 3;
 int blockIDRange = pow(base,kmer+1);
+int blockIDRangeForClusteredRecords = pow(base,kmer);
 int extraEdges = 0;
 int numThreads = 1;
+int clusterSizeCutoff = 1;
 long long int totalCompRequired;
 std::mutex mtx;
 
-vector<set<int> > block_list;
+vector<int> recordsInSmallClusters;
+vector<int> recordsInLargeClusters;
 vector<vector<int> > exactmatches;
 map<int, vector<int> > approxConnectedComponents;
 vector<vector<int> > finalConnectedComponents;
+map<int, vector<int> > approxConnectedComponentsOnClusteredRecords;
+vector<vector<int> > finalConnectedComponentsOnClusteredRecords;
 vector<string> vec1D;
 vector<vector<string> > vec2D;
 vector<vector<int> > clusterExactIndArr;
@@ -50,6 +57,10 @@ vector<pair<int,string> > uniqueRecords;
 vector<pair<int,string> > headlessCopies;
 vector<pair<int, string> > combinedData;
 vector<pair<int,int> > blockingIDList;
+vector<pair<int,int> > blockingIDListForRecordsInLargeClusters;
+vector<pair<int,int> > blockingIDListForRecordsInSmallClusters;
+vector<pair<int, int>> boundaryArrForLCBlocks;
+vector<pair<int, int>> boundaryArrForSCBlocks;
 vector<pair<int, int>> boundaryArr;
 vector<vector<pair<int, int>>> assignedBlocklists;
 vector<vector<int> > edgeArr;
@@ -114,9 +125,24 @@ class UnionFind {
 	int getSetCount() {
 		return this->numSets;
 	}
+
+	void setParent(int recId, int root) {
+		this->parentInd[recId] = root;
+	}
+
+	int getRootVal(int recId) {
+		int root = find(recId);
+		return parentInd[root];
+	}
+
+	void setRootVal(int recId, int val) {
+		int root = find(recId);
+		parentInd[root] = val;
+	}
 };
 
 vector<UnionFind> uf;
+UnionFind uf_finalClusters;
 
 // helps edit distance calculation in calculateBasicED()
 int calculateBasicED2(string& str1, string& str2, int threshRem)
@@ -358,6 +384,13 @@ double getWallTime() {
     return (double)time.tv_sec + (double)time.tv_usec * .000001;
 }
 
+// Debug Functions
+
+void printRecordsInSmallClusters(){
+	for(int i=0; i<recordsInSmallClusters.size(); i++){
+		cout<< vec2D[uniqueRecords[recordsInSmallClusters[i]].first][0] << endl;
+	}
+}
 
 // I/O Functions
 
@@ -383,7 +416,7 @@ void getFormattedDataFromCSV(string& file_path) {
 		vec.push_back(result[1]);
 		vec.push_back(result[2]);
 		vec.push_back(result[3]);
-		vec.push_back(result[4]);
+		//vec.push_back(result[4]);
         vec2D.push_back(vec);
     }
     records.close();
@@ -420,13 +453,25 @@ void writeFinalConnectedComponentToFile(string& result_file_name) {
     out_file.open(result_file_name);
 
 	for(int i = 0; i< finalConnectedComponents.size(); i++) {
-        //cout<< "Cluster Size: "<< finalConnectedComponents[i].size() << endl;
-		for(int j = 0; j< finalConnectedComponents[i].size(); j++) {
-            //cout<< "Num Copies :" << exactmatches[finalConnectedComponents[i][j]].size() << endl;
+        for(int j = 0; j< finalConnectedComponents[i].size(); j++) {
             for(int k=0; k< exactmatches[finalConnectedComponents[i][j]].size(); k++) {
                 //cout<< vec2D[exactmatches[finalConnectedComponents[i][j]][0]][0] << endl;
                 out_file << vec2D[uniqueRecords[finalConnectedComponents[i][j]].first][0] << ":" << vec2D[uniqueRecords[finalConnectedComponents[i][j]].first][attributes-1] << ",";
             }
+		}
+        out_file<< "\n";
+	}
+	out_file.close();
+}
+
+void writeFinalConnectedComponentOnClusteredToFile(string& result_file_name) {
+	ofstream out_file;
+    out_file.open(result_file_name);
+
+	for(int i = 0; i< finalConnectedComponentsOnClusteredRecords.size(); i++) {
+        for(int j = 0; j< finalConnectedComponentsOnClusteredRecords[i].size(); j++) {
+                //cout<< vec2D[exactmatches[finalConnectedComponents[i][j]][0]][0] << endl;
+                out_file << vec2D[uniqueRecords[finalConnectedComponentsOnClusteredRecords[i][j]].first][0] << ",";
 		}
         out_file<< "\n";
 	}
@@ -491,9 +536,6 @@ void getUniqueEntries() {
 // Blocking Functions
 
 void getBlockingIDArray() {
-	// int totalKMers = getKmerCount();
-	// cout << "Total Kmers: " << totalKMers << endl;
-	// blockingIDList.resize(totalKMers);
 	int perAplhaBlocks = pow(base,kmer);
 	int ind = 0;
 	int blockID = 0;
@@ -585,6 +627,306 @@ void doSortedComp() {
 		}
 	}
 	cout<< "Edges Added: "<< extraEdges << endl;
+}
+
+
+// Blocking Functions for Clustered Data
+
+void getBlockingIDArrayForRecordsInLargeClusters() {
+	int ind = 0;
+	int blockID = 0;
+	int indATUnique = 0;
+	string blockingStr;
+	for (int i = 0; i < recordsInLargeClusters.size(); i++) {
+		indATUnique = recordsInLargeClusters[i];
+		blockingStr = vec1D[uniqueRecords[indATUnique].first*attributes + 1];
+		string temp_str = vec1D[uniqueRecords[indATUnique].first*attributes + 1];
+		while(blockingStr.size() < kmer) {
+			if (blockingStr.size() == 0) {
+				blockingStr = "a";
+				temp_str = "a";
+			}
+			blockingStr = blockingStr + temp_str;
+		}
+		for (int j = 0; j < blockingStr.size() - kmer + 1 ; ++j) {
+			blockID = 0;
+			for (int k = 0; k < kmer; ++k)
+			{
+				blockID += ((int)blockingStr[j+k] - 97) * pow(base,k);
+			}
+			pair <int, int> p;
+			p.first = blockID;
+			p.second = indATUnique;
+			blockingIDListForRecordsInLargeClusters.push_back(p);
+		}
+	}
+}
+
+void getBlockingIDArrayForRecordsInSmallClusters() {
+	int ind = 0;
+	int blockID = 0;
+	int indATUnique = 0;
+	string blockingStr;
+	for (int i = 0; i < recordsInSmallClusters.size(); i++) {
+		indATUnique = recordsInSmallClusters[i];
+		blockingStr = vec1D[uniqueRecords[indATUnique].first*attributes + 1];
+		string temp_str = vec1D[uniqueRecords[indATUnique].first*attributes + 1];
+		while(blockingStr.size() < kmer) {
+			if (blockingStr.size() == 0) {
+				blockingStr = "a";
+				temp_str = "a";
+			}
+			blockingStr = blockingStr + temp_str;
+		}
+		for (int j = 0; j < blockingStr.size() - kmer + 1 ; ++j) {
+			blockID = 0;
+			for (int k = 0; k < kmer; ++k)
+			{
+				blockID += ((int)blockingStr[j+k] - 97) * pow(base,k);
+			}
+			pair <int, int> p;
+			p.first = blockID;
+			p.second = indATUnique;
+			blockingIDListForRecordsInSmallClusters.push_back(p);
+		}
+	}
+}
+
+void sortLargeClusterRecordsBlockingIDArray() {
+	int numRecords = blockingIDListForRecordsInLargeClusters.size();
+	vector<pair<int, int>> tempArr(numRecords);
+	vector<int> countArr(blockIDRangeForClusteredRecords, 0);
+
+	for (int j = 0; j < numRecords; ++j) {
+		countArr[blockingIDListForRecordsInLargeClusters[j].first]++;
+	}
+	// Do prefix sum
+	for (int k = 1; k < blockIDRangeForClusteredRecords; ++k)
+		countArr[k]	+= countArr[k - 1];
+
+	for (int j = numRecords - 1; j >= 0; --j)
+		tempArr[--countArr[blockingIDListForRecordsInLargeClusters[j].first]] = blockingIDListForRecordsInLargeClusters[j];
+	
+	for (int j = 0; j < numRecords; ++j)
+		blockingIDListForRecordsInLargeClusters[j] = tempArr[j];
+}
+
+void sortSmallClusterRecordsBlockingIDArray() {
+	int numRecords = blockingIDListForRecordsInSmallClusters.size();
+	vector<pair<int, int>> tempArr(numRecords);
+	vector<int> countArr(blockIDRangeForClusteredRecords, 0);
+
+	for (int j = 0; j < numRecords; ++j) {
+		countArr[blockingIDListForRecordsInSmallClusters[j].first]++;
+	}
+	// Do prefix sum
+	for (int k = 1; k < blockIDRangeForClusteredRecords; ++k)
+		countArr[k]	+= countArr[k - 1];
+
+	for (int j = numRecords - 1; j >= 0; --j)
+		tempArr[--countArr[blockingIDListForRecordsInSmallClusters[j].first]] = blockingIDListForRecordsInSmallClusters[j];
+	
+	for (int j = 0; j < numRecords; ++j)
+		blockingIDListForRecordsInSmallClusters[j] = tempArr[j];
+}
+
+void removeRedundentLargeClusterRecordsBlockingID() {
+	int numRecords = blockingIDListForRecordsInLargeClusters.size();
+	vector<pair<int, int>> tempArr;
+	totalUniqueBlocks = 1;
+	int copy_count = 1;
+	tempArr.push_back(blockingIDListForRecordsInLargeClusters[0]);
+	for (int i = 1; i<numRecords; i++) {
+		if ( ! ((blockingIDListForRecordsInLargeClusters[i].first == blockingIDListForRecordsInLargeClusters[i-1].first) && (blockingIDListForRecordsInLargeClusters[i].second == blockingIDListForRecordsInLargeClusters[i-1].second))) {
+			tempArr.push_back(blockingIDListForRecordsInLargeClusters[i]);
+			copy_count++;
+		}
+		if (blockingIDListForRecordsInLargeClusters[i].first != blockingIDListForRecordsInLargeClusters[i-1].first) {
+			totalUniqueBlocks++;
+		}
+	}
+	totalBlockedKmers = copy_count;
+	blockingIDListForRecordsInLargeClusters = tempArr;
+	cout << "For Records in Large Clusters Total Length: "<< numRecords << " total copies: "<< copy_count << " Total Unique Blocks: "<< totalUniqueBlocks << endl;
+}
+
+void removeRedundentSmallClusterRecordsBlockingID() {
+	int numRecords = blockingIDListForRecordsInSmallClusters.size();
+	vector<pair<int, int>> tempArr;
+	totalUniqueBlocks = 1;
+	int copy_count = 1;
+	tempArr.push_back(blockingIDListForRecordsInSmallClusters[0]);
+	for (int i = 1; i<numRecords; i++) {
+		if ( ! ((blockingIDListForRecordsInSmallClusters[i].first == blockingIDListForRecordsInSmallClusters[i-1].first) && (blockingIDListForRecordsInSmallClusters[i].second == blockingIDListForRecordsInSmallClusters[i-1].second))) {
+			tempArr.push_back(blockingIDListForRecordsInSmallClusters[i]);
+			copy_count++;
+		}
+		if (blockingIDListForRecordsInSmallClusters[i].first != blockingIDListForRecordsInSmallClusters[i-1].first) {
+			totalUniqueBlocks++;
+		}
+	}
+	totalBlockedKmers = copy_count;
+	blockingIDListForRecordsInSmallClusters = tempArr;
+	cout << "For Records in Small Clusters Total Length: "<< numRecords << " total copies: "<< copy_count << " Total Unique Blocks: "<< totalUniqueBlocks << endl;
+}
+
+void findBlockBoundariesForLargeClusterRecordsBlockList(){
+	boundaryArrForLCBlocks.resize(blockIDRangeForClusteredRecords);
+	for (int i = 0; i < blockIDRangeForClusteredRecords; i++)
+	{
+		boundaryArrForLCBlocks[i].first = -1;
+		boundaryArrForLCBlocks[i].second = 0;
+	}
+	
+	int numRecords = blockingIDListForRecordsInLargeClusters.size();
+	int startInd = 0;
+	int range = 0;
+	int curBlockId = blockingIDListForRecordsInLargeClusters[0].first;
+	for (int i = 1; i<numRecords; i++) {
+		if (blockingIDListForRecordsInLargeClusters[i].first != blockingIDListForRecordsInLargeClusters[i-1].first) {
+			range = i-startInd;
+			boundaryArrForLCBlocks[curBlockId].first = startInd;
+			boundaryArrForLCBlocks[curBlockId].second = range;
+			curBlockId = blockingIDListForRecordsInLargeClusters[i].first;
+			startInd = i;
+		}
+	}
+	// Enter last Block info
+	range = numRecords-startInd;
+	boundaryArrForLCBlocks[curBlockId].first = startInd;
+	boundaryArrForLCBlocks[curBlockId].second = range;
+}
+
+void findBlockBoundariesForSmallClusterRecordsBlockList(){
+	boundaryArrForSCBlocks.resize(blockIDRangeForClusteredRecords);
+	for (int i = 0; i < blockIDRangeForClusteredRecords; i++)
+	{
+		boundaryArrForSCBlocks[i].first = -1;
+		boundaryArrForSCBlocks[i].second = 0;
+	}
+	
+	int numRecords = blockingIDListForRecordsInSmallClusters.size();
+	int startInd = 0;
+	int range = 0;
+	int curBlockId = blockingIDListForRecordsInSmallClusters[0].first;
+	for (int i = 1; i<numRecords; i++) {
+		if (blockingIDListForRecordsInSmallClusters[i].first != blockingIDListForRecordsInSmallClusters[i-1].first) {
+			range = i-startInd;
+			boundaryArrForSCBlocks[curBlockId].first = startInd;
+			boundaryArrForSCBlocks[curBlockId].second = range;
+			curBlockId = blockingIDListForRecordsInSmallClusters[i].first;
+			startInd = i;
+		}
+	}
+	// Enter last Block info
+	range = numRecords-startInd;
+	boundaryArrForSCBlocks[curBlockId].first = startInd;
+	boundaryArrForSCBlocks[curBlockId].second = range;
+}
+
+// Edge extraction functions for blocked clustered records
+void getEdgesFromBlockedRecordsInSmallClusters() {
+	//cout<< "Hit small cluster edges extraction" << endl;
+	//cout<< "Blocks: "<< boundaryArrForSCBlocks.size() << endl;
+	int edgesAdded = 0;
+	for (int i = 0; i < boundaryArrForSCBlocks.size(); i++)
+	{
+		int startInd = boundaryArrForSCBlocks[i].first;
+		int endInd = startInd + boundaryArrForSCBlocks[i].second;
+		//cout<< "Start: " << startInd << " End: " << endInd << endl;
+		if (startInd < 0 || endInd < 1)
+		{
+			// just skip
+			continue;
+		}
+		
+		vector<pair<int, vector<string>>> recordList;
+		for (int j = startInd; j < endInd; j++)
+		{
+			int recID = blockingIDListForRecordsInSmallClusters[j].second;
+		//	cout<< "Copying: " << blockingIDListForRecordsInSmallClusters[j].second << endl;
+			pair<int, vector<string>> record;
+			record.first = recID;
+			record.second = vec2D[uniqueRecords[recID].first];
+			recordList.push_back(record);
+		}
+		// cout<< "Records Copied: " << recordList.size() << endl; 
+		for (int j = 0; j < recordList.size() - 1; j++)
+		{
+			pair<int, vector<string>> rec_j = recordList[j];
+
+			for (int k = j+1; k < recordList.size(); k++)
+			{
+			//	cout<< "Checking for j:" << j << " and k " << k << endl;
+				pair<int, vector<string>> rec_k = recordList[k];
+				if (!uf_finalClusters.isConnected(rec_j.first, rec_k.first)) {
+					if (isLinkageOk(rec_j.second, rec_k.second, blockingDistanceThresholdForClusteredRecords, nonBlockingDistanceThreshold)) {
+						uf_finalClusters.weightedUnion(rec_j.first, rec_k.first);
+						edgesAdded++;
+					}
+				}	
+			}
+		}
+	}
+	cout<< "Edges added by comparing records in Small Clusters: " << edgesAdded << endl;
+	
+}
+
+void getEdgesFromBlockedRecordsInSmallClustersToLargeClusters() {
+	int edgesAdded = 0;
+	for (int i = 0; i < boundaryArrForSCBlocks.size(); i++)
+	{
+		int startInd = boundaryArrForSCBlocks[i].first;
+		int endInd = startInd + boundaryArrForSCBlocks[i].second;
+		if(startInd < 0) {
+			continue;
+			// just skip this block
+		}
+		vector<pair<int, vector<string>>> recordList_small;
+		for (int j = startInd; j < endInd; j++)
+		{
+			int recID = blockingIDListForRecordsInSmallClusters[j].second;
+			pair<int, vector<string>> record;
+			record.first = recID;
+			record.second = vec2D[uniqueRecords[recID].first];
+			recordList_small.push_back(record);
+		}
+
+		int startInd_large = boundaryArrForLCBlocks[i].first;
+		int endInd_large = startInd_large + boundaryArrForLCBlocks[i].second;
+		if (startInd_large < 0)
+		{
+			continue;
+			// skip this block too. No records to compare to
+		}
+		
+		vector<pair<int, vector<string>>> recordList_large;
+		for (int j = startInd_large; j < endInd_large; j++)
+		{
+			int recID = blockingIDListForRecordsInLargeClusters[j].second;
+			pair<int, vector<string>> record;
+			record.first = recID;
+			record.second = vec2D[uniqueRecords[recID].first];
+			recordList_large.push_back(record);
+		}
+		
+		for (int j = 0; j < recordList_small.size(); j++)
+		{
+			pair<int, vector<string>> rec_j = recordList_small[j];
+
+			for (int k = 0;  k < recordList_large.size(); k++)
+			{
+				pair<int, vector<string>> rec_k = recordList_large[k];
+				if (!uf_finalClusters.isConnected(rec_j.first, rec_k.first)) {
+					if (isLinkageOk(rec_j.second, rec_k.second, blockingDistanceThresholdForClusteredRecords, nonBlockingDistanceThreshold)) {
+						uf_finalClusters.weightedUnion(rec_j.first, rec_k.first);
+						edgesAdded++;
+					}
+				}	
+			}
+		}
+	}
+	cout<< "Edges added by comparing records in Small to Large Clusters: " << edgesAdded << endl;
 }
 
 // Load Balancing Functions
@@ -693,7 +1035,7 @@ void findFinalConnectedComp(int intraBlockingCompDist, int intraNonBlockingCompD
         totalNodes+=numComponents;
         bool distmat[numComponents][numComponents];
         vector<vector<string>> dataArr(numComponents); // to make cache-efficient, keep records in a row
-		// Copy Data in cluster
+		// Copy Data in cluster into a vector
         for(int c=0; c<p.second.size(); c++) {
             dataArr[c] = vec2D[uniqueRecords[p.second[c]].first];
         };
@@ -719,22 +1061,174 @@ void findFinalConnectedComp(int intraBlockingCompDist, int intraNonBlockingCompD
         }
 
         for(int i=0; i<numComponents; i++) {
-            if(nodesConsidered[i] == false) {
-                vector<int> connectedComponent;
+            if(nodesConsidered[i] == false) { // false means its not in a cluster yet
+                vector<int> connectedComponentCandidates;
+				vector<int> selectedCandidates;
+				vector<int> connectedComponent;
                 connectedComponent.push_back(p.second[i]);
                 nodesConsidered[i] = true;
                 for(int j=0; j<numComponents; j++) {
                     if ((distmat[i][j] == true) && (nodesConsidered[j]==false)) {
-                        connectedComponent.push_back(p.second[j]);
-                        nodesConsidered[j] = true;
-                    }
-                }
+						connectedComponentCandidates.push_back(j);
+					}
+				}
+				if (connectedComponentCandidates.size() >= 1)
+				{
+					int triviallySelected = connectedComponentCandidates[connectedComponentCandidates.size()-1];
+					connectedComponentCandidates.pop_back();
+					selectedCandidates.push_back(triviallySelected);
+					connectedComponent.push_back(p.second[triviallySelected]);
+                    nodesConsidered[triviallySelected] = true;
+				}
+
+				for (int j = 0; j < connectedComponentCandidates.size(); j++)
+				{
+					bool isSelected = true;
+					for (int k = 0; k < selectedCandidates.size(); k++)
+					{
+						if (distmat[connectedComponentCandidates[j]][selectedCandidates[k]] == false) {
+							isSelected = false;
+							break;
+						}
+					}
+					if(isSelected) {
+						selectedCandidates.push_back(connectedComponentCandidates[j]);
+						connectedComponent.push_back(p.second[connectedComponentCandidates[j]]);
+						nodesConsidered[connectedComponentCandidates[j]] = true;
+					}
+					
+				}
                 finalConnectedComponents.push_back(connectedComponent);
             }
         }
     }
     cout<< "Total Nodes: "<< totalNodes << " unique records: " << totalUniqueRecords << endl;
     cout<< "Complete Linkage Components: "<< finalConnectedComponents.size()<<endl;
+}
+
+void findConnCompOnGeneralizedClustering()
+{
+	int i, root, edgeTotal;
+    for (int i = 0; i < totalUniqueRecords; i++)
+	{
+		root = uf_finalClusters.find(i);
+		approxConnectedComponentsOnClusteredRecords[root].push_back(i);
+	}
+	
+    cout<< "Single Linkage Connected Components On Clustered Records: " << approxConnectedComponentsOnClusteredRecords.size()<<endl;
+}
+
+void findFinalConnectedCompOnGeneralizedClustering(int intraBlockingCompDist, int intraNonBlockingCompDist) {
+    int totalNodes = 0;
+    int pairsAccessed = 0;
+    for (auto const& p : approxConnectedComponentsOnClusteredRecords) {
+        pairsAccessed++;
+        int numComponents = p.second.size();
+        totalNodes+=numComponents;
+        bool distmat[numComponents][numComponents];
+        vector<vector<string>> dataArr(numComponents); // to make cache-efficient, keep records in a row
+		// Copy Data in cluster into a vector
+        for(int c=0; c<p.second.size(); c++) {
+            dataArr[c] = vec2D[uniqueRecords[p.second[c]].first];
+        };
+
+		// generate a 2D matrix filled with all pair comparision results
+        for (int i =0; i<numComponents; i++) {
+            distmat[i][i] = true;
+            for (int j = i+1; j < numComponents; j++)
+            {
+                if (isLinkageOk(dataArr[i], dataArr[j], intraBlockingCompDist*2, intraNonBlockingCompDist)) {
+                    distmat[i][j] = true;
+                    distmat[j][i] = true;
+                } else {
+                    distmat[i][j] = false;
+                    distmat[j][i] = false;
+                }
+            }
+        }
+
+        bool nodesConsidered[numComponents];
+        for(int i=0; i<numComponents; i++) {
+            nodesConsidered[i] = false;
+        }
+
+        for(int i=0; i<numComponents; i++) {
+            if(nodesConsidered[i] == false) { // false means its not in a cluster yet
+                vector<int> connectedComponentCandidates;
+				vector<int> selectedCandidates;
+				vector<int> connectedComponent;
+                connectedComponent.push_back(p.second[i]);
+                nodesConsidered[i] = true;
+                for(int j=0; j<numComponents; j++) {
+                    if ((distmat[i][j] == true) && (nodesConsidered[j]==false)) {
+						connectedComponentCandidates.push_back(j);
+					}
+				}
+				if (connectedComponentCandidates.size() >= 1)
+				{
+					int triviallySelected = connectedComponentCandidates[connectedComponentCandidates.size()-1];
+					connectedComponentCandidates.pop_back();
+					selectedCandidates.push_back(triviallySelected);
+					connectedComponent.push_back(p.second[triviallySelected]);
+                    nodesConsidered[triviallySelected] = true;
+				}
+
+				for (int j = 0; j < connectedComponentCandidates.size(); j++)
+				{
+					bool isSelected = true;
+					for (int k = 0; k < selectedCandidates.size(); k++)
+					{
+						if (distmat[connectedComponentCandidates[j]][selectedCandidates[k]] == false) {
+							isSelected = false;
+							break;
+						}
+					}
+					if(isSelected) {
+						selectedCandidates.push_back(connectedComponentCandidates[j]);
+						connectedComponent.push_back(p.second[connectedComponentCandidates[j]]);
+						nodesConsidered[connectedComponentCandidates[j]] = true;
+					}
+					
+				}
+                finalConnectedComponentsOnClusteredRecords.push_back(connectedComponent);
+            }
+        }
+    }
+    cout<< "Total Nodes: "<< totalNodes << " unique records: " << totalUniqueRecords << endl;
+    cout<< "Complete Linkage Components On Connected Records: "<< finalConnectedComponentsOnClusteredRecords.size()<<endl;
+}
+
+
+// Reset and rebuild union find sets
+void rePopulateUnionFindSets(){
+	uf_finalClusters.setVariable(totalUniqueRecords);
+	for(int i = 0; i< finalConnectedComponents.size(); i++) {
+		int root = finalConnectedComponents[i][0];
+		for(int j = 1; j< finalConnectedComponents[i].size(); j++) {
+			uf_finalClusters.weightedUnion(root,finalConnectedComponents[i][j]);
+		}
+	}
+}
+
+// extract records belonging to clusters
+void extractRecordsInClusters() {
+	for(int i = 0; i< finalConnectedComponents.size(); i++) {
+		if (finalConnectedComponents[i].size() <= clusterSizeThreshold) {
+			for (int j = 0; j < finalConnectedComponents[i].size(); j++)
+			{
+				recordsInSmallClusters.push_back(finalConnectedComponents[i][j]);
+			}
+			
+		} else {
+			for (int j = 0; j < finalConnectedComponents[i].size(); j++)
+			{
+				recordsInLargeClusters.push_back(finalConnectedComponents[i][j]);
+			}
+		}
+	}
+	cout<< "Records in small clusters: " << recordsInSmallClusters.size() << endl;
+	cout<< "Records in Large Clusters: " << recordsInLargeClusters.size() << endl;
+	// printRecordsInSmallClusters();
 }
 
 // Threading related Functions
@@ -781,12 +1275,8 @@ void doNormalThreadedBlocking(int tID) {
 	cout<< "Thread: "<< tID << " has " << assignedBlocklists[tID].size() << " blocks" << endl;
 	for(int i = 0; i< assignedBlocklists[tID].size(); i++) {
 		pair<int, int> block = assignedBlocklists[tID][i];
-		// cout<< "Block Starts" << block.first << " And ends "<< block.first + block.second << endl;
 		vector<pair<int, vector<string>>> blockRecords;
-		// cout<< "Getting Record Blocks" << endl;
 		getBlockRecords(block, blockRecords);
-		// cout<< "Record Blocks Size " << blockRecords.size() << endl; 
-		// cout<< "Getting Edges from Blocked Records" << endl;
 		getEdgesFromBlockedRecords(tID, blockRecords);
 	}
 	cout << "Thread "<< tID << " Total Edges: "<< totalUniqueRecords - uf[tID].getSetCount() << endl;
@@ -802,8 +1292,8 @@ void *threadDriver(void* ptr) {
 }
 
 int main(int argc, char** argv) {
-    string filePath = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/";
-    // string filePath = "/home/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/";
+    // string filePath = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/";
+    string filePath = "/home/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/";
     string fileName = argv[1];
     filePath = filePath + argv[1];
     getFormattedDataFromCSV(filePath);
@@ -861,7 +1351,7 @@ int main(int argc, char** argv) {
 	{
 		int threadID = static_cast<int>(i);
 		int iret = pthread_create(&threads[threadID], NULL, threadDriver, &threadID);
-		usleep(10);
+		usleep(100);
 	}
 
 	doNormalThreadedBlocking(numThreads-1);
@@ -897,6 +1387,32 @@ int main(int argc, char** argv) {
     double findFinalComp_t	= (double)(clock() - currTS_p8_t) / CLOCKS_PER_SEC;
     cout<< "Final Connected Comps Find Time "<< findFinalComp_t << endl;
 	
+	// Add general case functions
+	cout<< "Checking functions"<< endl;
+	rePopulateUnionFindSets();
+	extractRecordsInClusters();
+	cout<< "Records Extracted" << endl;
+	getBlockingIDArrayForRecordsInLargeClusters();
+	getBlockingIDArrayForRecordsInSmallClusters();
+	cout<< "Got blockingID array" << endl;
+	sortLargeClusterRecordsBlockingIDArray();
+	sortSmallClusterRecordsBlockingIDArray();
+	cout<< "Sorted BlockingID Array" << endl;
+	removeRedundentLargeClusterRecordsBlockingID();
+	removeRedundentSmallClusterRecordsBlockingID();
+	cout<< "Removed redundent blockID, recID pairs" << endl;
+	findBlockBoundariesForLargeClusterRecordsBlockList();
+	findBlockBoundariesForSmallClusterRecordsBlockList();
+	cout<< "Found Block Boundaries" << endl;
+	getEdgesFromBlockedRecordsInSmallClusters();
+	cout<< "Found edges from records in small clusters " << endl;
+	getEdgesFromBlockedRecordsInSmallClustersToLargeClusters();
+	cout<< "Found the new edges" << endl;
+	findConnCompOnGeneralizedClustering();
+	cout<< "Found the new approximate clusters" << endl;
+	findFinalConnectedCompOnGeneralizedClustering(blockingDistanceThresholdForClusteredRecords, nonBlockingDistanceThreshold);
+	cout<< "Found the final clusters" << endl;
+
 	// Total Time Required
     double total_t	= (double)(clock() - currTS_p0) / CLOCKS_PER_SEC;
 	cout<< "Total processor run time "<< total_t << endl;
@@ -904,14 +1420,15 @@ int main(int argc, char** argv) {
 	cout<< "Get Total Wall Time "<< (double)(allDone_pX_Wt - currWallT_p0) << endl;
 
 	// Outputs
-    string out_file_path = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/data/";
-    // string out_file_path = "/home/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/data/";
-	string out_name1 = out_file_path + "out_single_linkage_"+ fileName + "_psb_fullName_unionFind_1_threads";
-	string out_name2 = out_file_path + "out_complete_linkage_"+ fileName + "_psb_fullName_unionFind_1_threads";
-	string stat_file_name = "stat_"+ fileName + "_psb_fullName_unionFind_1_threads";
+    // string out_file_path = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/data/";
+    string out_file_path = "/home/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/data/";
+	string out_name1 = out_file_path + "out_single_linkage_"+ fileName + "_pGEN_SB_fullName_unionFind_1_threads";
+	string out_name2 = out_file_path + "out_complete_linkage_"+ fileName + "_pGEN_SB_fullName_unionFind_1_threads";
+	string stat_file_name = "stat_"+ fileName + "_pGEN_SB_fullName_unionFind_1_threads";
 
-	writeApproximateConnectedComponentToFile(out_name1);
-	writeFinalConnectedComponentToFile(out_name2);
+	// writeApproximateConnectedComponentToFile(out_name1);
+
+	writeFinalConnectedComponentOnClusteredToFile(out_name2);
 
 	string stat_file_path = out_file_path + stat_file_name;
     ofstream stat_file;
