@@ -74,7 +74,6 @@ def get_all_records_with_ssn_count(count, tot_rec_dict, count_dict):
     return clusters
 
 
-
 def check_mismatch_and_count(sorted_data, counter):
     first_name_miss = 0
     last_name_miss = 0
