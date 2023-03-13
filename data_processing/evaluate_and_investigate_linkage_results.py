@@ -30,6 +30,7 @@ def get_rlaCL_clusters(path):
     #     print(i)
     return total_cluster_vec
 
+
 def get_my_clusters(path):
     total_cluster_vec = []
     cluster_vec = []
@@ -49,11 +50,12 @@ def get_my_clusters(path):
     #     print(i)
     return total_cluster_vec
 
+
 # Takes input vector of clusters
-# Outputs (i) a dictionary where SSN are keys and a tuple nis the value. Tuple contains number of records of key
+# Outputs (i) a dictionary where SSN are keys and a tuple is the value. Tuple contains number of records of key
 # found together in clusters
 # Outputs (ii) a dictionary where SSN are keys and value is the total count of the SSN found in all clusters combined
-# Outputs (iii) a vector of dictionary where each dictionary contains which ssn in contained
+# Outputs (iii) a vector of dictionary where each dictionary contains which ssn is contained
 # in the corresponding cluster how many times
 def get_ssn_info(cluster_vec):
     ssn_group_info = {}
@@ -107,6 +109,23 @@ def get_cluster_types(ssn_groups_in_single_cluster, ssn_counts):
             else:
                 t_counts[3] = t_counts[3] + 1  # Type 4: Cluster contains some records of multiple SSNs
     return t_counts
+
+
+# Input: vector of dictionary where each dictionary represents a cluster with uids as keys
+#       and number of records as values
+# Output: print heterogeneous clusters that are larger than a threshold size
+def print_large_clusters(ssn_groups_in_single_cluster, threshold):
+    clusterNo = 0
+    for my_cluster_dict in ssn_groups_in_single_cluster:
+        cluster_size = 0
+        if len(my_cluster_dict) > 1:
+            clusterNo = clusterNo + 1
+            for x in my_cluster_dict:
+                cluster_size = cluster_size + my_cluster_dict[x]
+        if cluster_size > threshold:
+            print(f"\n CLUSTER {clusterNo}: \n")
+            for x in my_cluster_dict:
+                print(f"{x} has {my_cluster_dict[x]} copies")
 
 
 # Input: dictionary of vectors of numbers of same ssn records found together in clusters
@@ -174,7 +193,7 @@ def get_cluster_sizes(clusters):
 ### main ###
 
 # file_path = "/Users/joyanta/Downloads/output_edit_ds2.1.txtOutSingle"
-file_path = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/Server_results/genRLA_NC/out_superblocking_RLA_CompleteLinkage_NC_VoterData_5M.csv_pGEN_NC_lastName_6_threads"
+file_path = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/Server_results/genRLA_NC/out_SB_CompleteLinkage_lastName_6_threads_B1_NB3"
 
 ### Calculate Cluster Accuracy
 
@@ -216,3 +235,13 @@ print(f"Linkage f1 score: {f1_score}")
 print(f"Linkage Accuracy: {accuracy}")
 cluster_sizes_dict = get_cluster_sizes(per_cluster_ssn_group_dict)
 print(cluster_sizes_dict)
+
+print_large_clusters(per_cluster_ssn_group_dict, 10)
+
+
+# 5212361,mary,young,sprucepine,28777
+# 1695154,marie,young,sprucepine,28777
+# 986244,mary,young,sprucepine,28777
+#
+# 785797,lillian,young,charlotte,28203
+# 3203263,william,young,charlotte,28205

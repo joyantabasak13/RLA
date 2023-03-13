@@ -50,7 +50,7 @@ def get_ssn_info(cluster_vec):
             recid_exact_indices[cluster_vec[i][0]].append(i)
         else:
             recid_exact_indices[cluster_vec[i][0]] = []
-            # recid_exact_indices[cluster_vec[i][0]].append(i)
+            recid_exact_indices[cluster_vec[i][0]].append(i)
             recid_counts[cluster_vec[i][0]] = 1
     return recid_exact_indices, recid_counts
 
@@ -149,29 +149,32 @@ print("List Sorted")
 recid_tot_dict, recid_count_dict = get_ssn_info(cluster_members_vec)
 print("Dictionaries built")
 selected_clusters = get_all_records_with_ssn_count(5, recid_tot_dict, recid_count_dict)
-print(selected_clusters)
-random.shuffle(selected_clusters)
-print(selected_clusters)
+
+for x in selected_clusters:
+    print(x)
+# print(selected_clusters)
+# random.shuffle(selected_clusters)
+# print(selected_clusters)
 
 # recid_sizes_dict = get_cluster_size_stat(recid_count_dict)
 # for key,val in recid_sizes_dict.items():
 #     print(f"{val} ids have {key} records")
 # mismatch_counter = 0
 # check_mismatch_and_count(cluster_members_vec, mismatch_counter)
-print(f"Total Records: {len(cluster_members_vec)}")
-print(f"Total Selected Records: {len(selected_clusters)}")
+# print(f"Total Records: {len(cluster_members_vec)}")
+# print(f"Total Selected Records: {len(selected_clusters)}")
 
-with open("NC_voter_data_mixed_1M.csv", "w", newline="") as f:
-    writer = csv.writer(f)
-    writer.writerows(selected_clusters)
-
-cluster_1 = selected_clusters[: len(selected_clusters) // 2]
-cluster_2 = selected_clusters[len(selected_clusters) // 2:]
-
-with open("NC_voter_data_mixed_1_1M.csv", "w", newline="") as f:
-    writer = csv.writer(f)
-    writer.writerows(cluster_1)
-
-with open("NC_voter_data_mixed_2_1M.csv", "w", newline="") as f:
-    writer = csv.writer(f)
-    writer.writerows(cluster_2)
+# with open("NC_voter_data_mixed_1M.csv", "w", newline="") as f:
+#     writer = csv.writer(f)
+#     writer.writerows(selected_clusters)
+#
+# cluster_1 = selected_clusters[: len(selected_clusters) // 2]
+# cluster_2 = selected_clusters[len(selected_clusters) // 2:]
+#
+# with open("NC_voter_data_mixed_1_1M.csv", "w", newline="") as f:
+#     writer = csv.writer(f)
+#     writer.writerows(cluster_1)
+#
+# with open("NC_voter_data_mixed_2_1M.csv", "w", newline="") as f:
+#     writer = csv.writer(f)
+#     writer.writerows(cluster_2)

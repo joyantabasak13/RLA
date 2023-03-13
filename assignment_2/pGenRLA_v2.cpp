@@ -29,10 +29,10 @@
 using namespace std;
 
 int threshold = 99;
-int blockingDistanceThreshold = 2;
+int blockingDistanceThreshold = 1;
 int blockingDistanceThresholdForClusteredRecords = 2;
 int singleNonBlockingDistanceThreshold = 2;
-int cumulativeNonBlockingDistanceThreshold = 4;
+int cumulativeNonBlockingDistanceThreshold = 3;
 int clusterSizeThreshold = 1;
 int totalRecords;
 int lenMax;
@@ -450,7 +450,7 @@ void writeApproximateConnectedComponentToFile(string& result_file_name) {
 	for (auto const& p : approxConnectedComponents) {
         for (int i=0; i<p.second.size(); i++) {
 			for (int j=0; j<exactmatches[p.second[i]].size(); j++) {
-				out_file<< vec2D[uniqueRecords[p.second[i]].first][0] << ",";
+				out_file<< vec2D[combinedData[exactmatches[p.second[i]][j]].first][0] << ",";
 			}
         }
         out_file<< "\n";
@@ -465,8 +465,9 @@ void writeFinalConnectedComponentToFile(string& result_file_name) {
 	for(int i = 0; i< finalConnectedComponents.size(); i++) {
         for(int j = 0; j< finalConnectedComponents[i].size(); j++) {
             for(int k=0; k< exactmatches[finalConnectedComponents[i][j]].size(); k++) {
-                out_file << vec2D[uniqueRecords[finalConnectedComponents[i][j]].first][0] << ",";
-            }
+                // out_file << vec2D[uniqueRecords[finalConnectedComponents[i][j]].first][0] << ",";
+            	out_file<< vec2D[combinedData[exactmatches[finalConnectedComponents[i][j]][k]].first][0] << ",";
+			}
 		}
         out_file<< "\n";
 	}
@@ -497,7 +498,9 @@ void getCombinedData() {
 	for (int i = 0; i< vec2D.size(); i++) {
 		pair<int, string> p;
 		p.first = i;
-		p.second = vec2D[i][1] + vec2D[i][2] + vec2D[i][3];
+		for(int j = 1; j<attributes; j++ ) {
+			p.second = p.second + vec2D[i][j];
+		}
 		combinedData[i]=p;
 		if (max<p.second.size()) {
 			max = p.second.size();
@@ -1058,16 +1061,22 @@ void findConnComp()
 void findFinalConnectedComp() {
     int totalNodes = 0;
     int pairsAccessed = 0;
-    for (auto const& p : approxConnectedComponents) {
+	// accessing all <key, value> pair where,
+	// key is the root of each approx. cluster
+	// value is a list of integers corresponding to unique record indices
+    
+	for (auto const& p : approxConnectedComponents) {
         pairsAccessed++;
         int numComponents = p.second.size();
-        totalNodes+=numComponents;
+		
+        totalNodes += numComponents;
         bool distmat[numComponents][numComponents];
         vector<vector<string>> dataArr(numComponents); // to make cache-efficient, keep records in a row
 		// Copy Data in cluster into a vector
         for(int c=0; c<p.second.size(); c++) {
             dataArr[c] = vec2D[uniqueRecords[p.second[c]].first];
         };
+		cout<< "Cluster: "<< pairsAccessed << " has " << numComponents << " Components"<< endl;
 
 		// generate a 2D matrix filled with all pair comparision results
         for (int i =0; i<numComponents; i++) {
@@ -1083,6 +1092,8 @@ void findFinalConnectedComp() {
                 }
             }
         }
+
+		cout<< "Cluster: "<< pairsAccessed << " all pair comparision done"<< endl;
 
         bool nodesConsidered[numComponents];
         for(int i=0; i<numComponents; i++) {
@@ -1101,11 +1112,12 @@ void findFinalConnectedComp() {
 						connectedComponentCandidates.push_back(j);
 					}
 				}
+
 				if (connectedComponentCandidates.size() >= 1)
 				{
 					int triviallySelected = connectedComponentCandidates[connectedComponentCandidates.size()-1];
-					connectedComponentCandidates.pop_back();
 					selectedCandidates.push_back(triviallySelected);
+					connectedComponentCandidates.pop_back();
 					connectedComponent.push_back(p.second[triviallySelected]);
                     nodesConsidered[triviallySelected] = true;
 				}
@@ -1428,7 +1440,7 @@ int main(int argc, char** argv) {
 
 	writeApproximateConnectedComponentToFile(out_name1);
 
-
+	cout<< "Single Linkage Connected Components are writen to file" << endl;
 	// Find Connected components (Complete Linkage)
     clock_t currTS_p8_t	= clock();
     findFinalConnectedComp();
