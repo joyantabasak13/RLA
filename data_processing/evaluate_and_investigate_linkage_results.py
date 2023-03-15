@@ -31,6 +31,27 @@ def get_rlaCL_clusters(path):
     return total_cluster_vec
 
 
+def get_recID_indices(path):
+    recIDs = {}
+    records = []
+    ind = 0
+    with open(path, "r", encoding="utf8") as file:
+        csv_reader = csv.reader(file, delimiter=",")
+        for row in csv_reader:
+            record = []
+            if len(row) > 0:
+                recID = int(row[0])
+                if recID in recIDs:
+                    recIDs[recID].append(ind)
+                else:
+                    recIDs[recID] = []
+                    recIDs[recID].append(ind)
+                for attr in row:
+                    record.append(attr)
+            records.append(record)
+            ind = ind + 1
+    return recIDs, records
+
 def get_my_clusters(path):
     total_cluster_vec = []
     cluster_vec = []
@@ -126,6 +147,8 @@ def print_large_clusters(ssn_groups_in_single_cluster, threshold):
             print(f"\n CLUSTER {clusterNo}: \n")
             for x in my_cluster_dict:
                 print(f"{x} has {my_cluster_dict[x]} copies")
+                for y in recID_indices[int(x)]:
+                    print(records_attrs[int(y)])
 
 
 # Input: dictionary of vectors of numbers of same ssn records found together in clusters
@@ -193,10 +216,11 @@ def get_cluster_sizes(clusters):
 ### main ###
 
 # file_path = "/Users/joyanta/Downloads/output_edit_ds2.1.txtOutSingle"
-file_path = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/Server_results/genRLA_NC/out_SB_CompleteLinkage_lastName_6_threads_B1_NB3"
-
+file_path = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/Server_results/genRLA_NC/out_superblocking_RLA_CompleteLinkage_NC_VoterData_5M.csv_pGEN_NC_lastName_6_threads"
+records_path = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/NC_VoterData_5M.csv"
 ### Calculate Cluster Accuracy
 
+recID_indices, records_attrs = get_recID_indices(records_path)
 cluster_members_vec = get_my_clusters(file_path)
 ssn_tot_dict, ssn_group_dict, per_cluster_ssn_group_dict = get_ssn_info(cluster_members_vec)
 total_clusters = len(cluster_members_vec)
@@ -236,12 +260,14 @@ print(f"Linkage Accuracy: {accuracy}")
 cluster_sizes_dict = get_cluster_sizes(per_cluster_ssn_group_dict)
 print(cluster_sizes_dict)
 
-print_large_clusters(per_cluster_ssn_group_dict, 10)
+# print_large_clusters(per_cluster_ssn_group_dict, 10)
 
 
 # 5212361,mary,young,sprucepine,28777
 # 1695154,marie,young,sprucepine,28777
 # 986244,mary,young,sprucepine,28777
-#
+# 5223827,mary,young,sprucepine,28777
+
+
 # 785797,lillian,young,charlotte,28203
 # 3203263,william,young,charlotte,28205

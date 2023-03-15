@@ -1,8 +1,11 @@
 g++ -std=c++17 -O3 -I /usr/local/boost_1_80_0/ -o pGenRLA_v2 pGenRLA_v2.cpp
 
-# ./pGenRLA_v2 nc_test_5k.csv
-
 ./pGenRLA_v2 NC_VoterData_5M.csv
+
+# g++ -std=c++17 -O3 -I /usr/local/boost_1_80_0/ -o NC_voterData_analysis NC_voterData_analysis.cpp
+
+# ./NC_voterData_analysis nc_test_5k.csv
+
 
 # g++ -std=c++17 -O3 -I /usr/local/boost_1_80_0/ -o prla_normalBlocking_unionFind prla_normalBlocking_unionFind.cpp
 

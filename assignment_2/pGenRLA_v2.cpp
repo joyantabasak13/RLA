@@ -30,9 +30,9 @@ using namespace std;
 
 int threshold = 99;
 int blockingDistanceThreshold = 1;
-int blockingDistanceThresholdForClusteredRecords = 2;
-int singleNonBlockingDistanceThreshold = 2;
-int cumulativeNonBlockingDistanceThreshold = 3;
+int blockingDistanceThresholdForClusteredRecords = 3;
+int singleNonBlockingDistanceThreshold = 3;
+int cumulativeNonBlockingDistanceThreshold = 9;
 int clusterSizeThreshold = 1;
 int totalRecords;
 int lenMax;
@@ -1347,8 +1347,8 @@ int main(int argc, char** argv) {
 	// Outputs
     // string out_file_path = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/data/";
     string out_file_path = "/home/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/data/";
-	string out_name1 = out_file_path + "out_superblocking_RLA_SingleLinkage_"+ fileName + "_pGEN_NC_lastName_6_threads";
-	string out_name2 = out_file_path + "out_superblocking_RLA_CompleteLinkage_"+ fileName + "_pGEN_NC_lastName_6_threads";
+	string out_name1 = out_file_path + "out_SB_RLA_SingleLinkage_"+ fileName + "_pGEN_NC_lastName_6_threads_dist_1_9";
+	string out_name2 = out_file_path + "out_SB_RLA_CompleteLinkage_"+ fileName + "_pGEN_NC_lastName_6_threads_dist_1_9";
 	string out_name3 = out_file_path + "out_general_RLA_"+ fileName + "_pGEN_NC_lastName_6_threads";
 	string out_name4 = out_file_path + "out_general_RLA_"+ fileName + "_pGEN_NC_lastName_6_threads";
 	string stat_file_name = "stat_"+ fileName + "_pGEN_NC_lastName_6_threads";
