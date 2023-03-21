@@ -35,7 +35,83 @@ int cumulativeNonBlockingDistanceThreshold = 10;
 
 vector<vector<string> > vec2D;
 vector<vector<int> > cluster2D;
-vector<vector<int> > completeClusters; 
+map<int, vector<int>> completeClusters; 
+
+class UnionFind {
+  public:
+    int numSets;
+	vector<int> parentInd;
+
+    UnionFind() { // Constructor with parameters
+		numSets = 0;
+    }
+
+	void setVariable(int numRecords) {
+		this->numSets = numRecords;
+      	this->parentInd.resize(numRecords);
+		for (int i = 0; i < numRecords; i++)
+		{
+			this->parentInd[i] = -1;
+		}
+	}
+
+	int find(int recID) {
+		int root = recID;
+    	while (parentInd[root] >= 0){
+			root = parentInd[root];
+		}
+		while (recID != root) { 
+			int newParent = parentInd[recID]; 
+			parentInd[recID] = root; 
+			recID = newParent; 
+		}
+		return root;
+	}
+
+	void weightedUnion(int recId1, int recId2) {
+		int i = find(recId1); 
+		int j = find(recId2); 
+		if (i == j) {
+			return;
+		}
+		// make smaller root point to larger one
+		if (parentInd[i] > parentInd[j]) { 
+			parentInd[j] += parentInd[i]; 
+			parentInd[i] = j; 
+		}
+		else { 
+			parentInd[i] += parentInd[j];
+			parentInd[j] = i;
+		}
+		numSets--;
+	}
+
+	bool isConnected(int recId1, int recId2) {
+		if (find(recId1) == find(recId2)) {
+			return true;
+		} else {
+			return false;
+		}
+	}
+
+	int getSetCount() {
+		return this->numSets;
+	}
+
+	void setParent(int recId, int root) {
+		this->parentInd[recId] = root;
+	}
+
+	int getRootVal(int recId) {
+		int root = find(recId);
+		return parentInd[root];
+	}
+
+	void setRootVal(int recId, int val) {
+		int root = find(recId);
+		parentInd[root] = val;
+	}
+};
 
 
 // helps edit distance calculation in calculateBasicED()
@@ -269,11 +345,15 @@ void getSingleLinakgeClusters(string& filePath) {
 void sourceConsistentCompleteLinkage(){
 	for(int i=0; i<cluster2D.size(); i++){
 		int numComponents = cluster2D[i].size();
-		cout<< "Cluster: " << i << " with Components: " << numComponents << endl;
+		// cout<< "Cluster: " << i << " with Components: " << numComponents << endl;
 		vector<vector<string>> records(numComponents);
+		UnionFind uf_finalClusters;
+		uf_finalClusters.setVariable(numComponents);
+		vector<set<string>> clusterSources(numComponents);
 		// copy records
 		for(int j=0; j < numComponents; j++){
 			records[j] = vec2D[cluster2D[i][j]];
+			clusterSources[j].insert(records[j][attributes-1]);
 		}
 		// sort records by source
 		for (int j = 0; j < numComponents; j++)
@@ -288,42 +368,84 @@ void sourceConsistentCompleteLinkage(){
 			}
 		}
 
-		// print to check
-		// for (int j = 0; j < numComponents; j++)
-		// {
-		// 	cout<< endl;
-		// 	for (int k = 0 ; k < attributes; k++) {
-		// 		cout<< records[j][k] << " ";
-		// 	}
-		// }
-
 		// compute all pair distance
 		priority_queue<pair<int, pair<int,int> > > pq;
 		for (int j = 0; j < numComponents; j++)
 		{
 			for (int k = j + 1 ; k < numComponents; k++) {
-				int dist = getDistance(records[j],records[k]);
-				pair<int, int> uv;
-				uv.first = j;
-				uv.second = k;
-				pair<int, pair<int,int>> edge;
-				edge.first = dist;
-				edge.second = uv;
-				pq.push(edge);
+				if(records[j][attributes-1] != records[k][attributes-1]) {
+					int dist = getDistance(records[j],records[k]);
+					pair<int, int> uv;
+					uv.first = j;
+					uv.second = k;
+					pair<int, pair<int,int>> edge;
+					edge.first = dist;
+					edge.second = uv;
+					pq.push(edge);
+				}
 			}
 		}
 		while(pq.empty()==false) {
-			cout<< "Edge weight: " << pq.top().first << " Edge u: " << pq.top().second.first << " Edge v: " << pq.top().second.second << endl;
+			int u = pq.top().second.first;
+			int x = pq.top().second.second;
+			int root_u = uf_finalClusters.find(u);
+			int root_v = uf_finalClusters.find(x);
+			if (root_u != root_v) {
+				bool noCommon = true;
+				for (auto v : clusterSources[root_u]) {
+					if (clusterSources[root_v].count(v) > 0) {
+						noCommon = false;
+					}
+				}
+				if (noCommon)
+				{
+					uf_finalClusters.weightedUnion(root_u, root_v);
+					if (root_u == uf_finalClusters.find(root_u))
+					{
+						for (auto v : clusterSources[root_v]) {
+							clusterSources[root_u].insert(v);
+						}
+					} else {
+						for (auto u : clusterSources[root_u]) {
+							clusterSources[root_v].insert(u);
+						}
+					}
+				}
+				
+			}
+
+			// cout<< "Edge weight: " << pq.top().first << " Edge u: " << pq.top().second.first << " Edge v: " << pq.top().second.second << endl;
 			pq.pop();
 		}
 
-		if(i>1000) return;
+		for(int j=0; j<numComponents; j++) {
+			int root = uf_finalClusters.find(j);
+			completeClusters[cluster2D[i][root]].push_back(cluster2D[i][j]);
+		}
+
+		if(i%100000 == 0) {
+			cout<< "Processed " << i << " Single Linkage Clusters" << endl;
+		}
 
 	}
 }
 
-void getCompleteClusters() {
+void writeCompleteConnectedComponentToFile(string& result_file_name) {
+	ofstream out_file;
+    out_file.open(result_file_name);
+	for (auto const& p : completeClusters) {
+        for (int i=0; i<p.second.size(); i++) {
+			out_file<< vec2D[p.second[i]][0] << ",";
+        }
+        out_file<< "\n";
+	}
+	out_file.close();
+}
+
+void getCompleteClusters(string& fileName) {
 	sourceConsistentCompleteLinkage();
+	writeCompleteConnectedComponentToFile(fileName);
+	cout<< "Total Clusters " << completeClusters.size() << endl;
 }
 
 
@@ -333,18 +455,19 @@ int main(int argc, char** argv) {
     string filePath = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/";
     string fileName = argv[1];
 	string singleLinkageClusterFile = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/Server_results/genRLA_NC/out_SB_RLA_SingleLinkage_RecInd_NO_DEDUP_NC_voterData_5M_Source_Annotated.csv_pGEN_NC_lastName_6_threads_dist_1_9";
-    filePath = filePath + argv[1];
+    string completeLinkageClusterFile = singleLinkageClusterFile + "_COMPLETE";
+	filePath = filePath + argv[1];
 	getData(filePath);
 	totalRecords = vec2D.size();
 	getSingleLinakgeClusters(singleLinkageClusterFile);
 
-	// Outputs
-    string out_file_path = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/data/";
-	string out_file_name = "CompleteLinkage_NC_CLIPLike_Clustering";
+	// // Outputs
+    // string out_file_path = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/data/";
+	// string out_file_name = "CompleteLinkage_NC_CLIPLike_Clustering";
 
 	// Sort the Combined Data
 	clock_t currTS_p0	= clock();
-    getCompleteClusters();
+    getCompleteClusters(completeLinkageClusterFile);
     double sorting_p0_t	= (double)(clock() - currTS_p0) / CLOCKS_PER_SEC;
     cout<< "Complete Linkage Time "<< sorting_p0_t << endl;
 

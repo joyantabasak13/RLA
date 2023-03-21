@@ -23,8 +23,8 @@
 using namespace std;
 
 int threshold = 99;
-int blockingDistanceThreshold = 2;
-int blockingDistanceThresholdForClusteredRecords = 3;
+int blockingDistanceThreshold = 5;
+int blockingDistanceThresholdForClusteredRecords = 5;
 int singleNonBlockingDistanceThreshold = 5;
 int cumulativeNonBlockingDistanceThreshold = 10;
 int clusterSizeThreshold = 1;
@@ -41,7 +41,7 @@ int blockIDRangeForClusteredRecords = pow(base,kmer);
 int extraEdges = 0;
 int numThreads = 6;
 int clusterSizeCutoff = 1;
-int blockFieldIndex = 4;
+int blockFieldIndex = 2;
 long long int totalCompRequired;
 std::mutex mtx;
 
@@ -361,6 +361,11 @@ int getKmerCount() {
 
 bool isLinkageOk(vector<string> &a, vector<string> &b, int blockingThreshold, int singleNonBlockingAttrThreshold, int totalNonBlockingAttrThreshold)
 {
+	if (a[attributes-1] == b[attributes-1])
+	{
+		return false;	
+	}
+	
 	int blockField_dist = calculateBasicED(a[1], b[1], blockingThreshold);
     if (blockField_dist <= threshold) {
 		int singleAttributeDist = 0;
@@ -1362,7 +1367,7 @@ int main(int argc, char** argv) {
 	// Outputs
     // string out_file_path = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/data/";
     string out_file_path = "/home/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/data/";
-	string fileNameSuffix = "_pGEN_NC_lastName_6_threads_dist_2_5_9";
+	string fileNameSuffix = "_pGEN_NC_lastName_6_threads_dist_5_5_10_ImprovCompare";
 	string out_name1 = out_file_path + "out_SB_RLA_SingleLinkage_NO_DEDUP_"+ fileName + fileNameSuffix;
 	string out_name2 = out_file_path + "out_SB_RLA_CompleteLinkage_NO_DEDUP_"+ fileName + fileNameSuffix;
 	string out_name3 = out_file_path + "out_SB_RLA_SingleLinkage_RecInd_NO_DEDUP_"+ fileName + fileNameSuffix;
@@ -1455,12 +1460,12 @@ int main(int argc, char** argv) {
 
 	writeApproximateConnectedComponentToFile(out_name1, out_name3);
 
-	cout<< "Single Linkage Connected Components are writen to file" << endl;
-	// Find Connected components (Complete Linkage)
-    clock_t currTS_p8_t	= clock();
-    findFinalConnectedComp();
-    double findFinalComp_t	= (double)(clock() - currTS_p8_t) / CLOCKS_PER_SEC;
-    cout<< "Final Connected Comps Find Time "<< findFinalComp_t << endl;
+	// cout<< "Single Linkage Connected Components are writen to file" << endl;
+	// // Find Connected components (Complete Linkage)
+    // clock_t currTS_p8_t	= clock();
+    // findFinalConnectedComp();
+    // double findFinalComp_t	= (double)(clock() - currTS_p8_t) / CLOCKS_PER_SEC;
+    // cout<< "Final Connected Comps Find Time "<< findFinalComp_t << endl;
 
 	// Total Time Required For SuperBlocking
     double total_SB_t	= (double)(clock() - currTS_p0) / CLOCKS_PER_SEC;
@@ -1469,7 +1474,7 @@ int main(int argc, char** argv) {
 	cout<< "SuperBlocking: Get Total Wall Time "<< (double)(SB_done_pX_Wt - currWallT_p0) << endl;
 
 	// Write the Intermediate Soln
-	writeFinalConnectedComponentToFile(out_name2);
+	// writeFinalConnectedComponentToFile(out_name2);
 
 	return 0;
 	
