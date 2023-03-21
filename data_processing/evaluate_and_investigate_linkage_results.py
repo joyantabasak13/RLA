@@ -215,9 +215,9 @@ def get_cluster_sizes(clusters):
 
 ### main ###
 
-# file_path = "/Users/joyanta/Downloads/output_edit_ds2.1.txtOutSingle"
-file_path = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/Server_results/genRLA_NC/out_superblocking_RLA_CompleteLinkage_NC_VoterData_5M.csv_pGEN_NC_lastName_6_threads"
-records_path = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/NC_VoterData_5M.csv"
+# file_path = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/Server_results/genRLA_NC/out_superblocking_RLA_SingleLinkage_NC_VoterData_5M.csv_pGEN_NC_lastName_6_threads"
+file_path = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/Server_results/genRLA_NC/out_SB_RLA_SingleLinkage_NO_DEDUP_NC_voterData_5M_Source_Annotated.csv_pGEN_NC_lastName_6_threads_dist_1_9"
+records_path = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/NC_voterData_5M_Source_Annotated.csv"
 ### Calculate Cluster Accuracy
 
 recID_indices, records_attrs = get_recID_indices(records_path)

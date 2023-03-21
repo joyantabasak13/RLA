@@ -1,11 +1,19 @@
-g++ -std=c++17 -O3 -I /usr/local/boost_1_80_0/ -o pGenRLA_v2 pGenRLA_v2.cpp
+g++ -std=c++17 -O3 -I /usr/local/boost_1_80_0/ -I /usr/local/  -o single_to_completeLinkage_analysis single_to_completeLinkage_analysis.cpp
 
-./pGenRLA_v2 NC_VoterData_5M.csv
+./single_to_completeLinkage_analysis NC_voterData_5M_Source_Annotated.csv
+
+
+# g++ -std=c++17 -O3 -I /usr/local/boost_1_80_0/ -o pGenRLA_v2_NC pGenRLA_v2_NC.cpp
+
+# ./pGenRLA_v2 nc_test_5k.csv
+
+# ./pGenRLA_v2 NC_VoterData_5M.csv
+
+# ./pGenRLA_v2_NC NC_voterData_5M_Source_Annotated.csv
 
 # g++ -std=c++17 -O3 -I /usr/local/boost_1_80_0/ -o NC_voterData_analysis NC_voterData_analysis.cpp
 
-# ./NC_voterData_analysis nc_test_5k.csv
-
+# ./NC_voterData_analysis NC_voterData_5M_Source_Annotated.csv
 
 # g++ -std=c++17 -O3 -I /usr/local/boost_1_80_0/ -o prla_normalBlocking_unionFind prla_normalBlocking_unionFind.cpp
 

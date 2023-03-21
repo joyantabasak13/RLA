@@ -8,7 +8,7 @@ from math import comb
 import re
 
 
-def get_data_clusters(path, total_cluster_vec):
+def get_data_clusters(path, total_cluster_vec, index):
     counter = 0
     with open(path, "r", encoding="utf8") as file:
         csv_reader = csv.reader(file, delimiter=",")
@@ -29,6 +29,7 @@ def get_data_clusters(path, total_cluster_vec):
                     else:
                         field = re.sub('[^A-Za-z0-9]+', '', field)
                         cluster_vec.append(field)
+                cluster_vec.append(index)
                 total_cluster_vec.append(cluster_vec)
                 counter += 1
                 # if counter >= 5000:
@@ -123,35 +124,36 @@ file_path_4 = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/N
 file_path_5 = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/NC_voter_data_5M/vds_5_1M.csv"
 
 cluster_members_vec = []
-cluster_members_vec = get_data_clusters(file_path_1, cluster_members_vec)
+cluster_members_vec = get_data_clusters(file_path_1, cluster_members_vec, 1)
 print("first file read")
-cluster_members_vec = get_data_clusters(file_path_2, cluster_members_vec)
+cluster_members_vec = get_data_clusters(file_path_2, cluster_members_vec, 2)
 print("second file read")
-cluster_members_vec = get_data_clusters(file_path_3, cluster_members_vec)
+cluster_members_vec = get_data_clusters(file_path_3, cluster_members_vec, 3)
 print("third file read")
-cluster_members_vec = get_data_clusters(file_path_4, cluster_members_vec)
+cluster_members_vec = get_data_clusters(file_path_4, cluster_members_vec, 4)
 print("fourth file read")
-cluster_members_vec = get_data_clusters(file_path_5, cluster_members_vec)
+cluster_members_vec = get_data_clusters(file_path_5, cluster_members_vec, 5)
 print("fifth file read")
+
 # cluster_1 = cluster_members_vec[: len(cluster_members_vec) // 2]
 # cluster_2 = cluster_members_vec[len(cluster_members_vec) // 2:]
 #
-# with open("NC_voter_data_1_1M.csv", "w", newline="") as f:
-#     writer = csv.writer(f)
-#     writer.writerows(cluster_1)
-#
+with open("NC_voterData_5M_Source_Annotated.csv", "w", newline="") as f:
+    writer = csv.writer(f)
+    writer.writerows(cluster_members_vec)
+
 # with open("NC_voter_data_2_1M.csv", "w", newline="") as f:
 #     writer = csv.writer(f)
 #     writer.writerows(cluster_2)
 
-cluster_members_vec.sort(key=lambda x: int(x[0]))
-print("List Sorted")
-recid_tot_dict, recid_count_dict = get_ssn_info(cluster_members_vec)
-print("Dictionaries built")
-selected_clusters = get_all_records_with_ssn_count(5, recid_tot_dict, recid_count_dict)
-
-for x in selected_clusters:
-    print(x)
+# cluster_members_vec.sort(key=lambda x: int(x[0]))
+# print("List Sorted")
+# recid_tot_dict, recid_count_dict = get_ssn_info(cluster_members_vec)
+# print("Dictionaries built")
+# selected_clusters = get_all_records_with_ssn_count(5, recid_tot_dict, recid_count_dict)
+#
+# for x in selected_clusters:
+#     print(x)
 # print(selected_clusters)
 # random.shuffle(selected_clusters)
 # print(selected_clusters)

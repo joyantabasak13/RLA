@@ -54,6 +54,6 @@ def get_data_and_write_csv(path1, path2, filename):
 ###### Main Func ######
 ###### This takes tab deliminated <SSN, FirstName, LastName, Dod, Dob> 2 files and merges to one with <SSN, Name, Dod, Dob>
 file_path_1 = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/19500671/ds7.1.1"
-file_path_2 = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/19500671/ds7.1.2"poiuytrewq
+file_path_2 = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/19500671/ds7.1.2"
 file_path_3 = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/firstName_LastName_DS/"
 get_data_and_write_csv(file_path_1, file_path_2, file_path_3)

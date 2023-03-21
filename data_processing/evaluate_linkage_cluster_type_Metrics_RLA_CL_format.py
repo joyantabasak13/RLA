@@ -30,6 +30,7 @@ def get_rlaCL_clusters(path):
     #     print(i)
     return total_cluster_vec
 
+
 def get_my_clusters(path):
     total_cluster_vec = []
     cluster_vec = []
@@ -48,6 +49,7 @@ def get_my_clusters(path):
     # for i in total_cluster_vec:
     #     print(i)
     return total_cluster_vec
+
 
 # Takes input vector of clusters
 # Outputs (i) a dictionary where SSN are keys and a tuple nis the value. Tuple contains number of records of key

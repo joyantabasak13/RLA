@@ -330,9 +330,10 @@ void getSameEntities() {
 		}
 		string cur_recID = vec2D[combinedData[i].first][0];
         if (!recID.compare(cur_recID)) {
-			// cout<< "recID: " << recID << " curID " << cur_recID << endl;
+			// cout<< "Match: recID: " << recID << " curID " << cur_recID << endl;
 			cluster.push_back(vec2D[combinedData[i].first]);
 		} else {
+			// cout<< "MisMatch: recID: " << recID << " curID " << cur_recID << endl;
 			recID = cur_recID;
 			sameEntities.push_back(cluster);
 			cluster.clear();
@@ -344,54 +345,102 @@ void getSameEntities() {
 }
 
 void getDistances() {
+	int postCode_1_dist = 0;
+	string abnormalPostcode;
+	vector<int> postCodeLen;
+	int missedTPLink = 0;
+	int accurateMissedTPLink = 0;
+	postCodeLen.resize(10,0);
+
 	for(int i = 0; i< sameEntities.size(); i++) {
 		bool printThis = false;
-		if (sameEntities[i].size()>1)
-		{
-			cout<< "Cluster " << i << " has " << sameEntities[i].size() << " records" << endl;
-			printThis = true;
-		} else {
-			printThis = false;
-		}
-		
-		
+	
 		vector<vector<int>> intraClusterDists;
 		for (int j = 0; j < sameEntities[i].size()-1; j++)
 		{
 			for (int k = j+1 ; k < sameEntities[i].size(); k++)
 			{
 				vector<int> pairwiseAttrDists;
+				pairwiseAttrDists.resize(attributes-1, 0);
 				for (int attr = 1; attr < attributes; attr++)
 				{
 					int attrDist = calculateBasicED(sameEntities[i][j][attr], sameEntities[i][k][attr], 10);
-					pairwiseAttrDists.push_back(attrDist);
+					pairwiseAttrDists[attr-1] = attrDist;
 				}
-				// if (printThis)
-				// {
-				// 	for ( int z = 0; z < attributes; z++)
-				// 	{
-				// 		cout<< " " << pairwiseAttrDists[z];
-				// 	}
-				// 	cout<< endl;
-				// 	cout<< "Attributes: " << endl;
-				// 	// for ( int z = 0; z < attributes; z++)
-				// 	// {
-				// 	// 	cout << sameEntities[i][k][z] << "	 " << sameEntities[i][j][z]  << endl;
-				// 	// }
-				// 	// cout<< "Suspicious attribute " << sameEntities[i][j][attributes-1] << endl;
-				// 	// cout<< "Suspicious attribute " << sameEntities[i][k][attributes-1] << endl;
-				// 	cout<< endl;
-					
-				// }
+				if (sameEntities[i][j][attributes-2][0] != sameEntities[i][k][attributes-2][0]){
+					if (pairwiseAttrDists[attributes-2]>1) {
+						postCode_1_dist++;
+					}
+				}
 				
 				intraClusterDists.push_back(pairwiseAttrDists);
 			}
 		}
+		for (int j = 0; j < sameEntities[i].size(); j++)
+		{
+			int thisPostCodeLength = sameEntities[i][j][attributes-2].size();
+			if (thisPostCodeLength < 1)
+			{
+				// cout<< "UID: " << sameEntities[i][j][0] << endl;
+				if (sameEntities[i].size() > 1) {
+					// cout<< "Will miss: "<< sameEntities[i].size()-1 << " tp links for this" << endl;
+					for ( int k = 0; k < sameEntities[i].size(); k++)
+					{
+						if(k!=j) {
+							if (sameEntities[i][k][attributes-2].size()>0) {
+								accurateMissedTPLink++;
+							}
+						}
+					}
+					
+					missedTPLink += sameEntities[i].size()-1;
+				}
+			} else if (thisPostCodeLength > 8) {
+				abnormalPostcode = sameEntities[i][j][0];
+			}
+			
+			postCodeLen[thisPostCodeLength]++;
+		}
 		distances.push_back(intraClusterDists);
 	}
+	cout<< "PostCode firstPlace Mismatch: " << postCode_1_dist << endl;
+	for (int m = 0; m < postCodeLen.size(); m++)
+	{
+		cout<< "Postcode length "<< m <<" : " << postCodeLen[m] << endl;
+	}
+	cout<< "Abnormal Postcode: " << abnormalPostcode << endl;
+	cout<< "Maybe Miss: "<< missedTPLink << endl;
+	cout<< "Surely Miss: " << accurateMissedTPLink << endl;
 }
 
-
+void getMaxDistanceInEachAttr() {
+	vector<int> maxDistanceSummary;
+	maxDistanceSummary.resize(attributes-1);
+	for (int i=0; i<attributes-1; i++) {
+		maxDistanceSummary[i] = 0;
+	}
+	int maxCumulativeDistance = 0;
+	for (int i=0; i<distances.size(); i++) {
+		for (int j=0; j<distances[i].size(); i++) {
+			int cumulativeDistance = 0;
+			for (int k = 0; k<attributes-1; k++) {
+				cumulativeDistance += distances[i][j][k];
+				if (distances[i][j][k] > maxDistanceSummary[k])
+				{
+					maxDistanceSummary[k] = distances[i][j][k];
+				}
+			}
+			if (cumulativeDistance > maxCumulativeDistance) {
+				maxCumulativeDistance = cumulativeDistance;
+			}
+		}
+	}
+	cout<< "Max Cumulative distance in a Group: " << maxCumulativeDistance << endl;
+	for (int i = 0; i < attributes-1; i++)
+	{
+		cout<< "MaxDist in Atrribute: "<< i << " is " << maxDistanceSummary[i] << endl;
+	}	
+}
 
 int main(int argc, char** argv) {
 
@@ -423,10 +472,14 @@ int main(int argc, char** argv) {
 	getDistances();
 	double distanceCalculation_p2_t	= (double)(clock() - currTS_p2) / CLOCKS_PER_SEC;
     cout<< "Intra Cluster Distance Calculation time: "<< distanceCalculation_p2_t << endl;
-	string s = "505183";
-	string t = "5051830";
-	if (!s.compare(t)) {
-		cout << "yeah same" << endl;
-	}
+
+	getMaxDistanceInEachAttr();
+
+	string x = "XYZ10";
+	boost::to_lower(x);
+	cout<< x << endl;
+	string y = "";
+	cout<< "Distance is " << calculateBasicED(x, y, threshold) << endl; 
+
     return 0;
 }

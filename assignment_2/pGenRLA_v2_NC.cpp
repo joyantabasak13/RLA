@@ -23,9 +23,9 @@
 using namespace std;
 
 int threshold = 99;
-int blockingDistanceThreshold = 1;
+int blockingDistanceThreshold = 2;
 int blockingDistanceThresholdForClusteredRecords = 3;
-int singleNonBlockingDistanceThreshold = 3;
+int singleNonBlockingDistanceThreshold = 5;
 int cumulativeNonBlockingDistanceThreshold = 10;
 int clusterSizeThreshold = 1;
 int totalRecords;
@@ -41,7 +41,7 @@ int blockIDRangeForClusteredRecords = pow(base,kmer);
 int extraEdges = 0;
 int numThreads = 6;
 int clusterSizeCutoff = 1;
-int blockFieldIndex = 2;
+int blockFieldIndex = 4;
 long long int totalCompRequired;
 std::mutex mtx;
 
@@ -409,15 +409,16 @@ void getFormattedDataFromCSV(string& file_path) {
         vector<string> vec;
         vec.push_back(result[0]);
 		string blockStr = result[blockFieldIndex];
-		//Remove digits from name
+		
 		auto last = std::remove_if(blockStr.begin(), blockStr.end(), [](auto ch) {
-        								return ::isdigit(ch) || ::ispunct(ch) || ::iswpunct(ch);
+        								return ::ispunct(ch) || ::iswpunct(ch);
     								});
 		blockStr.erase(last, blockStr.end()); //Remove junk left by remove_if() at the end of iterator
         boost::to_lower(blockStr);
 		vec.push_back(blockStr);
 		for(int i = 1; i<result.size(); i++){
 			if (i!=blockFieldIndex) {
+				boost::to_lower(result[i]);
 				vec.push_back(result[i]);
 			}
 		}
@@ -1361,11 +1362,12 @@ int main(int argc, char** argv) {
 	// Outputs
     // string out_file_path = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/data/";
     string out_file_path = "/home/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/data/";
-	string out_name1 = out_file_path + "out_SB_RLA_SingleLinkage_NO_DEDUP_"+ fileName + "_pGEN_NC_lastName_6_threads_dist_1_9";
-	string out_name2 = out_file_path + "out_SB_RLA_CompleteLinkage_NO_DEDUP_"+ fileName + "_pGEN_NC_lastName_6_threads_dist_1_9";
-	string out_name3 = out_file_path + "out_SB_RLA_SingleLinkage_RecInd_NO_DEDUP_"+ fileName + "_pGEN_NC_lastName_6_threads_dist_1_9";
-	string out_name4 = out_file_path + "out_general_RLA_"+ fileName + "_pGEN_NC_lastName_6_threads";
-	string stat_file_name = "stat_"+ fileName + "_pGEN_NC_lastName_6_threads";
+	string fileNameSuffix = "_pGEN_NC_lastName_6_threads_dist_2_5_9";
+	string out_name1 = out_file_path + "out_SB_RLA_SingleLinkage_NO_DEDUP_"+ fileName + fileNameSuffix;
+	string out_name2 = out_file_path + "out_SB_RLA_CompleteLinkage_NO_DEDUP_"+ fileName + fileNameSuffix;
+	string out_name3 = out_file_path + "out_SB_RLA_SingleLinkage_RecInd_NO_DEDUP_"+ fileName + fileNameSuffix;
+	string out_name4 = out_file_path + "out_general_RLA_"+ fileName + fileNameSuffix;
+	string stat_file_name = "stat_"+ fileName + fileNameSuffix;
 
 	// Sort the Combined Data
 	clock_t currTS_p0	= clock();
@@ -1450,7 +1452,6 @@ int main(int argc, char** argv) {
     findConnComp();
     double findComp_p7_t	= (double)(clock() - currTS_p7) / CLOCKS_PER_SEC;
     cout<< "Connected Comp Find Time "<< findComp_p7_t << endl;
-
 
 	writeApproximateConnectedComponentToFile(out_name1, out_name3);
 
