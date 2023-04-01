@@ -23,6 +23,9 @@
 using namespace std;
 
 int threshold = 99;
+int blockingDistanceThreshold = 2;
+int nonBlockingDistanceThreshold = 2;
+int totalNonBlockingAttrThreshold = 4;
 int totalRecords;
 int lenMax;
 int totalUniqueRecords;
@@ -524,68 +527,24 @@ void findBlockAssignments() {
 	}
 }
 
-bool isLinkageOk(vector<string> &a, vector<string> &b, int threshold)
+bool isLinkageOk(vector<string> &a, vector<string> &b, int blockingThreshold, int singleNonBlockingAttrThreshold)
 {
-    //int dist = 0;
-	int name_dist = calculateBasicED(a[1], b[1], 1);
-    //dist +=name_dist;
-    if (name_dist <= threshold) {
-        int dod_dist = calculateBasicED(a[2], b[2], 1);
-        //dist+=dod_dist;   
-        if (dod_dist <= threshold) {
-            int dob_dist = calculateBasicED(a[3], b[3], 1);
-            //dist+=dod_dist;
-            // if(dist==0) {
-            //     //Self edge?
-            //     return false;
-            // }
-            if (dob_dist <= threshold) {
-                return true;
-            } else {
-                return false;
-            }
-        } else {
-            return false;
-        }
-    } else {
-        return false;
+	int blockField_dist = calculateBasicED(a[1], b[1], blockingThreshold);
+    if (blockField_dist <= threshold) {
+		int singleAttributeDist = 0;
+		int cumulativeNonBlockingDist = 0;
+		for (int i = 2; i < a.size(); i++)
+		{
+			singleAttributeDist = calculateBasicED(a[i], b[i], singleNonBlockingAttrThreshold);
+			cumulativeNonBlockingDist += singleAttributeDist;
+			if (cumulativeNonBlockingDist > totalNonBlockingAttrThreshold){
+				return false;
+			}
+		}
+		return true;     
     }
+	return false;
 }
-
-
-// WHY NOT Adding the distances ??
-// bool isLinkageOk(vector<string> &a, vector<string> &b, int threshold)
-// {
-//     //int dist = 0;
-// 	int last_name_dist = calculateBasicED(a[1], b[1], 1);
-//     //dist +=name_dist;
-//     if (last_name_dist <= threshold) {
-// 		int first_name_dist = calculateBasicED(a[2], b[2], 1);
-// 		if (first_name_dist <= threshold) {	
-// 			int dod_dist = calculateBasicED(a[3], b[3], 1);
-// 			//dist+=dod_dist;   
-// 			if (dod_dist <= threshold) {
-// 				int dob_dist = calculateBasicED(a[4], b[4], 1);
-// 				//dist+=dod_dist;
-// 				// if(dist==0) {
-// 				//     //Self edge?
-// 				//     return false;
-// 				// }
-// 				if (dob_dist <= threshold) {
-// 					return true;
-// 				} else {
-// 					return false;
-// 				}
-// 			} else {
-// 				return false;
-// 			}
-//         } else {
-//             return false;
-//         }
-//     } else {
-//         return false;
-//     }
-// }
 
 void generateEdgilist(set<int>& blockRowArr)
 {
@@ -616,7 +575,7 @@ void generateEdgilist(set<int>& blockRowArr)
             }
 
             if (!set_of_edges.count(edge_pair)) {
-                if (isLinkageOk(dataArr[i], dataArr[j], 1)) {
+                if (isLinkageOk(dataArr[i], dataArr[j], blockingDistanceThreshold, nonBlockingDistanceThreshold)) {
                     set_of_edges.insert(edge_pair);
                 }
             }
@@ -738,7 +697,7 @@ void findFinalConnectedComp(int intraCompDist) {
             distmat[i][i] = true;
             for (int j = i+1; j < numComponents; j++)
             {
-                if (isLinkageOk(dataArr[i], dataArr[j], intraCompDist)) {
+                if (isLinkageOk(dataArr[i], dataArr[j], blockingDistanceThreshold, nonBlockingDistanceThreshold)) {
                     distmat[i][j] = true;
                     distmat[j][i] = true;
                 } else {
@@ -855,7 +814,7 @@ void getEdgesFromBlockedRecords(int id, vector<pair<int, vector<string>>> blockR
             }
 
             if (!sets_of_edges_t[id].count(edge_pair)) {
-                if (isLinkageOk(blockRecords[i].second, blockRecords[j].second, 1)) {
+                if (isLinkageOk(blockRecords[i].second, blockRecords[j].second, blockingDistanceThreshold, nonBlockingDistanceThreshold)) {
                     sets_of_edges_t[id].insert(edge_pair);
                 }
             }

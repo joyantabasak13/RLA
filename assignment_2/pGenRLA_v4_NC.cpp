@@ -1,4 +1,6 @@
-// PRLA superblocking with Union find & Load balance
+// Take hit Deduplication
+// interlaced size 4 rotating superblocking
+// 3 2 3 2 5 distance threshold 
 
 #include <algorithm>
 #include <chrono>
@@ -25,25 +27,27 @@
 using namespace std;
 
 int threshold = 99;
-int blockingDistanceThreshold = 2;
-int nonBlockingDistanceThreshold = 2;
-int totalNonBlockingAttrThreshold = 2;
+int cumulativeDistanceThreshold = 5;
+vector<int> attrDistThreshold{3,2,3,2};
+int clusterSizeThreshold = 1;
 int totalRecords;
 int lenMax;
 int totalUniqueRecords;
 int totalUniqueBlocks;
 int totalBlockedKmers;
 int attributes;
-int base = 26;
+int base = 36;
 int kmer = 3;
 int blockIDRange = pow(base,kmer+1);
 int extraEdges = 0;
-int numThreads = 1;
+int numThreads = 6;
+int numSources = 5;
+int prelen = 1;
 long long int totalCompRequired;
-std::mutex mtx;
 
-vector<set<int> > block_list;
 vector<vector<int> > exactmatches;
+vector<vector<int> > fullExactMatches;
+vector<vector<int> > candidateExactmatches;
 map<int, vector<int> > approxConnectedComponents;
 vector<vector<int> > finalConnectedComponents;
 vector<string> vec1D;
@@ -52,10 +56,13 @@ vector<vector<int> > clusterExactIndArr;
 vector<pair<int,string> > uniqueRecords;
 vector<pair<int,string> > headlessCopies;
 vector<pair<int, string> > combinedData;
+vector<pair<int, string> > noConflictCombinedData;
 vector<pair<int,int> > blockingIDList;
 vector<pair<int, int>> boundaryArr;
 vector<vector<pair<int, int>>> assignedBlocklists;
 vector<vector<int> > edgeArr;
+vector<int> conflictRecords;
+vector<int> noConflictRecords;
 
 class UnionFind {
   public:
@@ -76,6 +83,7 @@ class UnionFind {
 	}
 
 	int find(int recID) {
+		// cout<< "called " << parentInd.size()  <<endl;
 		int root = recID;
     	while (parentInd[root] >= 0){
 			root = parentInd[root];
@@ -107,11 +115,15 @@ class UnionFind {
 	}
 
 	bool isConnected(int recId1, int recId2) {
+		// cout<< "called" << endl;
 		if (find(recId1) == find(recId2)) {
+			// cout<< "returned true" << endl;
 			return true;
 		} else {
+			// cout<< "returned false" << endl;
 			return false;
 		}
+		// cout<< "returning" << endl;
 	}
 
 	int getSetCount() {
@@ -131,9 +143,62 @@ class UnionFind {
 		int root = find(recId);
 		parentInd[root] = val;
 	}
+
+	int getNumset() {
+		return this->numSets;
+	}
+
+	vector<int> getParentArr() {
+		return this->parentInd;
+	}
+
+	void copyUF (UnionFind uf_c) {
+		this->numSets = uf_c.getNumset();
+		vector<int> parentIndArr = uf_c.getParentArr();
+		for (int i=0; i<parentIndArr.size(); i++) {
+			this->parentInd[i] = parentIndArr[i];
+		}
+	}
 };
 
+class ConnectedComponents {
+	public:
+		set<int> sources;
+		set<pair<int,int>> recordSourcePairs;
+		int representativeRecordIndex;
+
+		void addRecord(int recID, int sourceID) {
+			sources.insert(sourceID);
+			pair<int, int> p;
+			p.first = recID;
+			p.second = sourceID;
+			recordSourcePairs.insert(p);
+		}
+
+		void setRepresentative(int ind) {
+			representativeRecordIndex = ind;
+		}
+
+		int getRepresentative() {
+			return representativeRecordIndex;
+		}
+
+		bool isCluster() {
+			if (sources.size() == recordSourcePairs.size()) {
+				return true;
+			} else {
+				return false;
+			}
+		}
+
+		set<pair<int,int>> getRecordSourcePairs() {
+			return recordSourcePairs;
+		}
+};
+
+vector<ConnectedComponents> connCom;
 vector<UnionFind> uf;
+UnionFind uf_finalClusters;
 
 // helps edit distance calculation in calculateBasicED()
 int calculateBasicED2(string& str1, string& str2, int threshRem)
@@ -314,7 +379,6 @@ void radixSort(vector<pair<int, string> > &strDataArr){
 	vector<pair<int, string>> tempArr(numRecords);
 	
 	for (int i = lenMax - 1; i >= 0; --i) {
-		// cout<< "radixSort i: " << i << endl;
 		vector<int> countArr(256, 0);
 		
 		for (int j = 0; j < numRecords; ++j) {
@@ -332,60 +396,28 @@ void radixSort(vector<pair<int, string> > &strDataArr){
 	}
 }
 
-void printSortedRecords() {
-    for (int i =0; i< combinedData.size(); i++) {
-        if ((combinedData[i].second[0] == 'p') && (combinedData[i].second[1]== 'a')){
-            cout<< combinedData[i].first << " " << combinedData[i].second << endl;
-        }
-    }
-}
-
-int getKmerCount() {
-	long long int totalKmerCount = 0;
-	string blockingStr;
-	for (int i = 0; i < totalUniqueRecords; i++) {
-		totalKmerCount += vec1D[uniqueRecords[i].first*attributes + 1].size() - kmer + 1;
-	}
-	return totalKmerCount;
-}
-
-// bool isLinkageOk(vector<string> &a, vector<string> &b, int blockingThreshold, int nonBlockingThreshold)
-// {
-// 	int name_dist = calculateBasicED(a[1], b[1], blockingThreshold);
-//     if (name_dist <= threshold) {
-// 		int nonBlockingDist = 0;
-//         int dod_dist = calculateBasicED(a[2], b[2], nonBlockingThreshold);
-//         nonBlockingDist+=dod_dist;   
-//         if (nonBlockingDist <= nonBlockingThreshold) {
-//             int dob_dist = calculateBasicED(a[3], b[3], nonBlockingThreshold-nonBlockingDist);
-//             nonBlockingDist+=dob_dist;
-//             if (nonBlockingDist <= nonBlockingThreshold) {
-//                 return true;
-//             } 
-//         }
-//     }
-// 	return false;
-// }
-
-bool isLinkageOk(vector<string> &a, vector<string> &b, int blockingThreshold, int singleNonBlockingAttrThreshold)
+bool isLinkageOk(vector<string> &a, vector<string> &b)
 {
-	int blockField_dist = calculateBasicED(a[1], b[1], blockingThreshold);
-    if (blockField_dist <= threshold) {
-		int singleAttributeDist = 0;
-		int cumulativeNonBlockingDist = 0;
-		for (int i = 2; i < a.size(); i++)
-		{
-			singleAttributeDist = calculateBasicED(a[i], b[i], singleNonBlockingAttrThreshold);
-			cumulativeNonBlockingDist += singleAttributeDist;
-			if (cumulativeNonBlockingDist > totalNonBlockingAttrThreshold){
+	// This condition is for the dataset under investigation only
+	if (a[attributes-1] == b[attributes-1])
+	{
+		return false;	
+	}
+	int cumulativeDist = 0;
+	for (int i = 1; i < attributes-1; i++)
+	{	
+		int dist = calculateBasicED(a[i], b[i], attrDistThreshold[i]);
+		if (dist > attrDistThreshold[i]){
+			return false;
+		} else {
+			cumulativeDist += dist;
+			if (cumulativeDist > cumulativeDistanceThreshold){
 				return false;
 			}
 		}
-		return true;     
-    }
-	return false;
+	}
+	return true;
 }
-
 
 double getWallTime() {
 	struct timeval time;
@@ -395,7 +427,6 @@ double getWallTime() {
     }
     return (double)time.tv_sec + (double)time.tv_usec * .000001;
 }
-
 
 // I/O Functions
 
@@ -409,23 +440,16 @@ void getFormattedDataFromCSV(string& file_path) {
         vector<string> result;
         boost::split(result, line, boost::is_any_of(","));
         vector<string> vec;
-        vec.push_back(result[0]);
 
-		//Remove digits and alphanumerics from name
-		auto last = std::remove_if(result[1].begin(), result[1].end(), [](auto ch) {
-        								return ::isdigit(ch) || ::ispunct(ch) || ::iswpunct(ch);
+		for(int i = 0; i<result.size(); i++){
+			string attrStr = result[i];
+			auto last = std::remove_if(attrStr.begin(), attrStr.end(), [](auto ch) {
+        								return ::ispunct(ch) || ::iswpunct(ch);
     								});
-		result[1].erase(last, result[1].end()); //Remove junk left by remove_if() at the end of iterator
-        boost::to_lower(result[1]);
-		// auto first = std::remove_if(result[2].begin(), result[2].end(), [](auto ch) {
-        // 								return ::isdigit(ch) || ::ispunct(ch) || ::iswpunct(ch);
-    	// 							});
-		// result[2].erase(first, result[2].end()); //Remove junk left by remove_if() at the end of iterator
-        // boost::to_lower(result[2]);
-
-		vec.push_back(result[1]);
-		vec.push_back(result[2]);
-		vec.push_back(result[3]);
+			attrStr.erase(last, attrStr.end()); //Remove junk left by remove_if() at the end of iterator
+			boost::to_lower(attrStr);
+			vec.push_back(attrStr);
+		}
         vec2D.push_back(vec);
     }
     records.close();
@@ -442,50 +466,98 @@ void getFormattedDataFromCSV(string& file_path) {
     cout<< "Attributes: "<<attributes << endl;
 }
 
-void writeApproximateConnectedComponentToFile(string& result_file_name) {
+void writeCompleteClustersFromDeduplication(string& fileName) {
 	ofstream out_file;
-    out_file.open(result_file_name);
+    out_file.open(fileName);
+	for (int i = 0; i<conflictRecords.size(); i++) {
+		out_file<< vec2D[conflictRecords[i]][0] << ",";
+		out_file<< "\n";
+    }
+	for (int i=0; i<fullExactMatches.size(); i++) {
+		for(int j=0; j<fullExactMatches[i].size(); j++) {
+			out_file<< vec2D[noConflictCombinedData[fullExactMatches[i][j]].first][0]<<",";
+		}
+		out_file<<"\n";
+	}
+	out_file.close();
+}
 
+void writeUniqueRecordConnectedComponents(string& recID_file, string& recInd_file) {
+	ofstream out_file;
+	ofstream index_file;
+    out_file.open(recID_file);
+	index_file.open(recInd_file);
+	for (auto const& p : approxConnectedComponents) {
+        for (int i=0; i<p.second.size(); i++) {
+			out_file<< vec2D[uniqueRecords[p.second[i]].first][0] << ",";
+			index_file<< uniqueRecords[p.second[i]].first << ",";
+        }
+        out_file<< "\n";
+		index_file<< "\n";
+	}
+	out_file.close();
+}
+
+void writeCandidateExactClusters(string& fileName) {
+	ofstream out_file;
+    out_file.open(fileName);
+	for (int i=0; i<exactmatches.size(); i++) {
+		for (int j=0; j<exactmatches[i].size(); j++) {
+			out_file<< vec2D[noConflictCombinedData[exactmatches[i][j]].first][0] << ",";
+		}
+		out_file<< "\n";
+	}
+	out_file.close();
+}
+ 
+void writeSingleLinkageFullOutput(string& fileName, string& fileName_rec) {
+	ofstream out_file;
+	ofstream rec_file;
+    out_file.open(fileName);
+	rec_file.open(fileName_rec);
 	for (auto const& p : approxConnectedComponents) {
         for (int i=0; i<p.second.size(); i++) {
 			for (int j=0; j<exactmatches[p.second[i]].size(); j++) {
-				out_file<< vec2D[uniqueRecords[p.second[i]].first][0] << ",";
+				out_file<< vec2D[noConflictCombinedData[exactmatches[p.second[i]][j]].first][0] << ",";
+				rec_file<< noConflictCombinedData[exactmatches[p.second[i]][j]].first << ",";
 			}
         }
         out_file<< "\n";
+		rec_file<< "\n";
+
 	}
-	out_file.close();
-}
 
-void writeFinalConnectedComponentToFile(string& result_file_name) {
-	ofstream out_file;
-    out_file.open(result_file_name);
+	for (int i = 0; i<conflictRecords.size(); i++) {
+		out_file<< vec2D[conflictRecords[i]][0] << ",";
+		rec_file<< conflictRecords[i]<<",";
+		out_file<< "\n";
+		rec_file<< "\n";
+    }
 
-	for(int i = 0; i< finalConnectedComponents.size(); i++) {
-        //cout<< "Cluster Size: "<< finalConnectedComponents[i].size() << endl;
-		for(int j = 0; j< finalConnectedComponents[i].size(); j++) {
-            //cout<< "Num Copies :" << exactmatches[finalConnectedComponents[i][j]].size() << endl;
-            for(int k=0; k< exactmatches[finalConnectedComponents[i][j]].size(); k++) {
-                //cout<< vec2D[exactmatches[finalConnectedComponents[i][j]][0]][0] << endl;
-                out_file << vec2D[uniqueRecords[finalConnectedComponents[i][j]].first][0] << ",";
-            }
+	for (int i=0; i<fullExactMatches.size(); i++) {
+		for(int j=0; j<fullExactMatches[i].size(); j++) {
+			out_file<< vec2D[noConflictCombinedData[fullExactMatches[i][j]].first][0]<<",";
+			rec_file<< noConflictCombinedData[fullExactMatches[i][j]].first <<",";
 		}
-        out_file<< "\n";
+		out_file<<"\n";
+		rec_file<< "\n";
 	}
 	out_file.close();
+	rec_file.close();
 }
-
 
 // Deduplication and Data preprocessing
 
 void getCombinedData() {
-	string strSample(50, '0');
+	string strSample(50, 'a');
 	combinedData.resize(totalRecords);
 	int max = 0;
 	for (int i = 0; i< vec2D.size(); i++) {
 		pair<int, string> p;
 		p.first = i;
-		p.second = vec2D[i][1] + vec2D[i][2] + vec2D[i][3];
+		for(int j = 1; j<attributes; j++ ) {
+			p.second = p.second + vec2D[i][j];
+		}
 		combinedData[i]=p;
 		if (max<p.second.size()) {
 			max = p.second.size();
@@ -494,30 +566,179 @@ void getCombinedData() {
 	lenMax = max;
 	// Padding to make all characters same size
     for (int i = 0; i < totalRecords; ++i) {
-		int lenDiff		= lenMax - combinedData[i].second.length();
+		int lenDiff		= lenMax - combinedData[i].second.size();
 		if(lenDiff > 0)
 			combinedData[i].second	+= strSample.substr(0, lenDiff);
 	}
+
+	cout<< "Printing Combined DATA" << endl;
+	cout<< endl;
+	for (size_t i = 0; i < combinedData.size(); i++)
+	{
+		cout<< "RecInd: " << combinedData[i].first << " Str: " << combinedData[i].second << endl;
+
+	}
+	
 }
 
-// Do exact clustering from lexically sorted vector of int,string pair
+// find out conflict clusters
+void getConflictClusters() {
+	vector<bool> conflictStatus;
+	conflictStatus.resize(totalRecords, false);
+	for (int i = 0; i < totalRecords-1; ++i) {
+		if(combinedData[i].second.compare(combinedData[i + 1].second) == 0) {
+			conflictStatus[i] = true;
+			conflictStatus[i+1] = true;
+		}
+	}
+	for (int i = 0; i< totalRecords; i++) {
+		if(conflictStatus[i] == true) {
+			conflictRecords.push_back(combinedData[i].first);
+		} else {
+			noConflictRecords.push_back(combinedData[i].first);
+		}
+	}
+	cout << "total Conflicted Records: " << conflictRecords.size() << endl;
+	cout << "total Non-Conflicted Records: " << noConflictRecords.size() << endl;
+
+	cout<< "Printing Conflicted Records: " << endl;
+	for (size_t i = 0; i < conflictRecords.size(); i++)
+	{
+		cout<< "RecInd: " << conflictRecords[i] << " RecLastName: " << vec2D[conflictRecords[i]][2] << endl;
+	}
+
+	cout<< "Printing NON-Conflicted Records: " << endl;
+	for (size_t i = 0; i < noConflictRecords.size(); i++)
+	{
+		cout<< "RecInd: " << noConflictRecords[i] << " RecLastName: " << vec2D[noConflictRecords[i]][2] << endl;
+	}
+	
+}
+
+void getNoConflictCombinedData() {
+string strSample(50, '0');
+	noConflictCombinedData.resize(noConflictRecords.size());
+	int max = 0;
+	for (int i = 0; i< noConflictRecords.size(); i++) {
+		pair<int, string> p;
+		p.first = noConflictRecords[i];
+		for(int j = 1; j<attributes-1; j++ ) {
+			p.second = p.second + vec2D[noConflictRecords[i]][j];
+		}
+		noConflictCombinedData[i]=p;
+		if (max<p.second.size()) {
+			max = p.second.size();
+		}
+	}
+	lenMax = max;
+	// Padding to make all characters same size
+    for (int i = 0; i < noConflictCombinedData.size(); ++i) {
+		int lenDiff		= lenMax - noConflictCombinedData[i].second.length();
+		if(lenDiff > 0)
+			noConflictCombinedData[i].second	+= strSample.substr(0, lenDiff);
+	}
+
+	cout<< "Printing noConflictCombinedData: " << endl;
+	for (size_t i = 0; i < noConflictCombinedData.size(); i++)
+	{
+		cout<< "RecInd: " << noConflictCombinedData[i].first << " Str: " << noConflictCombinedData[i].second << endl;
+	}
+	
+}
+
+// Do exact clustering from lexically sorted vector of nonconflicting int,string pair
 void getExactMatches() {
 	vector<int> tempVec;
 
-	tempVec.push_back(0);
+	tempVec.push_back(noConflictCombinedData[0].first);
 
-	for (int i = 1; i < totalRecords; ++i) {
-		if(combinedData[i].second.compare(combinedData[i - 1].second) == 0)
-			tempVec.push_back(i);
+	for (int i = 1; i < noConflictCombinedData.size(); ++i) {
+		if(noConflictCombinedData[i].second.compare(noConflictCombinedData[i - 1].second) == 0)
+			tempVec.push_back(noConflictCombinedData[i].first);
 		else {
 			exactmatches.push_back(tempVec);
 			tempVec.clear();
-			tempVec.push_back(i);
+			tempVec.push_back(noConflictCombinedData[i].first);
 		}
 	}
 	exactmatches.push_back(tempVec);
 	totalUniqueRecords = exactmatches.size();
 	cout << "total exact clusters: " << totalUniqueRecords << endl;
+
+	cout<< "Printing Exact Clusters: " << endl;
+	for (size_t i = 0; i < exactmatches.size(); i++)
+	{
+		cout<< "Match: "<< i << " of Size " << exactmatches[i].size() << endl;
+		for (size_t j = 0; j < exactmatches[i].size(); j++)
+		{
+			cout<< "RecID: " << exactmatches[i][j] << " StrLastName: " << vec2D[exactmatches[i][j]][2] << endl;
+		}
+		cout<< endl;
+	}
+}
+
+void getFullClustersFromExactMatchs(){
+	for(int i=0; i<exactmatches.size(); i++) {
+		if(exactmatches[i].size() == numSources) {
+			fullExactMatches.push_back(exactmatches[i]);
+		} else if (exactmatches[i].size() < numSources) {
+			candidateExactmatches.push_back(exactmatches[i]);
+		} else {
+			cout<< "Exact match Error Size: " << exactmatches[i].size() << endl;
+			for(int j=0; j<exactmatches[i].size(); j++) {
+				for(int k = 0; k<attributes; k++) {
+					cout<< vec2D[exactmatches[i][j]][k] << " ";
+				}
+				cout<< endl;
+			}
+			cout<< endl;
+
+		}
+	}
+
+	cout<< "Printing FUll ExactMatches:" << endl;
+	cout<< endl;
+	for (size_t i = 0; i < fullExactMatches.size(); i++)
+	{
+		cout<< "Match: " << i << " of size: " << fullExactMatches[i].size() << endl;
+		for (size_t j = 0; j < fullExactMatches[i].size(); j++)
+		{
+			cout<< "RecID: " << fullExactMatches[i][j] << " StrLastName: " << vec2D[fullExactMatches[i][j]][2] << endl;
+		}
+		cout<< endl;
+	}
+
+	cout<< "Printing Candidate ExactMatches:" << endl;
+	cout<< endl;
+	for (size_t i = 0; i < candidateExactmatches.size(); i++)
+	{
+		cout<< "Match: " << i << " of size: " << candidateExactmatches[i].size() << endl;
+		for (size_t j = 0; j < candidateExactmatches[i].size(); j++)
+		{
+			cout<< "RecID: " << candidateExactmatches[i][j] << " StrLastName: " << vec2D[candidateExactmatches[i][j]][2] << endl;
+		}
+		cout<< endl;
+	}
+	
+
+	// int incorrectFullMatch = 0;
+	// for(int i = 0; i<fullExactMatches.size(); i++) {
+	// 	bool isTrueMatch = true;
+	// 	for(int j = 0; j<fullExactMatches[i].size()-1; j++) {
+	// 		if (vec2D[noConflictCombinedData[fullExactMatches[i][j]].first][0] != vec2D[noConflictCombinedData[fullExactMatches[i][j+1]].first][0]){
+	// 			isTrueMatch = false;
+	// 			break;
+	// 		}
+	// 	}
+	// 	if(!isTrueMatch) {
+	// 		incorrectFullMatch++;
+	// 	}
+	// }
+
+	cout<< "Total FULL EXACT MATCHES: " << fullExactMatches.size() << endl;
+	// cout<< "Total Incorrect Full Match: " << incorrectFullMatch << endl;
+	cout<< "Total Candidate Matches: " << candidateExactmatches.size() << endl;
+	totalUniqueRecords = candidateExactmatches.size();
 }
 
 void getUniqueEntries() {
@@ -525,46 +746,71 @@ void getUniqueEntries() {
 
 	for (size_t i = 0; i < totalUniqueRecords; i++)
     {
-        uniqueRecords[i] = combinedData[exactmatches[i][0]];
-        // cout<< uniqueRecords[i].first << "\t" << uniqueRecords[i].second << endl;
+        uniqueRecords[i] = noConflictCombinedData[candidateExactmatches[i][0]];
     }
 }
 
 // Blocking Functions
 
+string getBlockingString(int recInd) {
+	string blockingStr;
+	for(int j=0;j<prelen;j++) {	
+		for(int i=1; i<attributes-1; i++) {
+			if(vec1D[(recInd*attributes) + i].size()){
+				blockingStr+= vec1D[(recInd*attributes) + i][0];
+			}
+		}
+	}
+
+	while(blockingStr.size() < kmer) {
+		blockingStr += "a";
+	}
+	rotate(blockingStr.begin(), blockingStr.begin() + 1, blockingStr.end());
+	return blockingStr;
+}
+
 void getBlockingIDArray() {
-	// int totalKMers = getKmerCount();
-	// cout << "Total Kmers: " << totalKMers << endl;
-	// blockingIDList.resize(totalKMers);
-	int perAplhaBlocks = pow(base,kmer);
+	int perAlphaBlocks = pow(base,kmer);
+	int alphabets = 26;
+	int numericals = 10;
 	int ind = 0;
 	int blockID = 0;
 	int indATUnique = 0;
 	string blockingStr;
 	for (int i = 0; i < totalUniqueRecords; i++) {
 		indATUnique = i;
-		blockingStr = vec1D[uniqueRecords[i].first*attributes + 1];
-		string temp_str = vec1D[uniqueRecords[i].first*attributes + 1];
-		while(blockingStr.size() < kmer) {
-			if (blockingStr.size() == 0) {
-				blockingStr = "a";
-				temp_str = "a";
-			}
-			blockingStr = blockingStr + temp_str;
+		blockingStr = getBlockingString(uniqueRecords[i].first);
+
+		if (i <10 ) {
+			cout<< blockingStr << " ID " << vec1D[uniqueRecords[i].first*attributes] << endl;
 		}
-		for (int j = 0; j < blockingStr.size() - kmer + 1 ; ++j) {
+		int blkstrSize = blockingStr.size();
+		for (int j = 0; j < blkstrSize; ++j) {
 			blockID = 0;
 			for (int k = 0; k < kmer; ++k)
 			{
-				blockID += ((int)blockingStr[j+k] - 97) * pow(base,k);
+				int blockStrCharCode = (int)blockingStr[(j+k)%blkstrSize];
+				if ((blockStrCharCode >= 97) && (blockStrCharCode <= 122)) {
+					blockID += ((int)blockingStr[(j+k)%blkstrSize] - 97) * pow(base,k);
+				} else if ((blockStrCharCode >= 48) && (blockStrCharCode <= 57)){
+					blockID += ((int)blockingStr[(j+k)%blkstrSize] - 48 + alphabets) * pow(base,k);
+				}
 			}
-			blockID = (blockingStr[0]-97)*perAplhaBlocks + blockID;
+			if ((blockingStr[0] >= 97) && (blockingStr[0] <= 122)) {
+					blockID = ((int)blockingStr[0] - 97)*perAlphaBlocks + blockID;
+			} else if ((blockingStr[0] >= 48) && (blockingStr[0] <= 57)){
+					blockID = ((int)blockingStr[0] - 48 + alphabets)*perAlphaBlocks + blockID;
+			} else {
+				blockID = 0;
+			}
+
 			pair <int, int> p;
 			p.first = blockID;
 			p.second = indATUnique;
 			blockingIDList.push_back(p);
 		}
 	}
+	cout<< "Blocking ID Pairs: " << blockingIDList.size() << endl;
 }
 
 void sortBlockingIDArray() {
@@ -608,26 +854,46 @@ void removeRedundentBlockingID() {
 
 void doSortedComp() {
 	headlessCopies.resize(2*totalUniqueRecords);
+	int blockingStrMaxSize = prelen*(attributes-2);
+	cout<< "Max Blocking string size: " << blockingStrMaxSize << endl;
+	string strSample(blockingStrMaxSize, '0');
+
 	int main_tid = numThreads - 1 ;
 	for(int i=0; i< uniqueRecords.size(); i++) { 
+		string blockStr = vec1D[uniqueRecords[i].first*attributes];
+		// Pad blockstring to make uniform size
+		int lenDiff	= blockingStrMaxSize - blockStr.length();
+		if(lenDiff > 0) {
+			blockStr += strSample.substr(0, lenDiff);
+		}
+		// if (i<10){
+		// 	cout<< "i: " << i << " BlockString: " << blockStr << " Headless: " << (blockStr.substr(1, blockStr.length()-1) + '0') << endl;
+		// }
 		headlessCopies[i].first = i;
-		headlessCopies[i].second = uniqueRecords[i].second;
+		headlessCopies[i].second = blockStr;
 		headlessCopies[totalUniqueRecords+i].first = i;
-		headlessCopies[totalUniqueRecords+i].second = uniqueRecords[i].second.substr(1,uniqueRecords[i].second.size()-1) + '0';
+		headlessCopies[totalUniqueRecords+i].second = blockStr.substr(1, blockStr.length()-1) + '0';
 	}
-	cout<< "Before RedixSort" << endl;
+	cout<< "No SegFault in Copying Headless Copies" << endl;
+
+	lenMax = blockingStrMaxSize;
 	radixSort(headlessCopies);
-	cout<< "After RedixSort" << endl;
+
+	cout<< "No SegFault in radixSorting Headless Copies" << endl;
+
 	for (int i = 1; i < headlessCopies.size(); i++) {
 		if (headlessCopies[i-1].second.compare(headlessCopies[i].second) == 0) {
 			int recID_i = headlessCopies[i-1].first;
             int recID_j = headlessCopies[i].first;
             if (!uf[main_tid].isConnected(recID_i, recID_j)) {
-                uf[main_tid].weightedUnion(recID_i, recID_j);
-				extraEdges++;
+				if (isLinkageOk(vec2D[recID_i], vec2D[recID_j])) {
+                	uf[main_tid].weightedUnion(recID_i, recID_j);
+					extraEdges++;
+				}
 			}
 		}
 	}
+	cout<< "No SegFault in edge Adding" << endl;
 	cout<< "Edges Added: "<< extraEdges << endl;
 }
 
@@ -646,18 +912,19 @@ void findBlockBoundaries() {
 			range = i-startInd;
 			boundaryArr[curBlockInd].first = startInd;
 			boundaryArr[curBlockInd].second = range;
-			totalCompRequired = totalCompRequired + pow(range,2);
+			totalCompRequired += ceil((pow(range,2) - range) / 2);
 			curBlockInd++;
 			startInd = i;
 		}
 	}
 	// Enter last Block info
 	range = numRecords-startInd;
-	totalCompRequired = totalCompRequired + pow(range,2);
+	totalCompRequired += ceil((pow(range,2) - range) / 2);
 	boundaryArr[curBlockInd].first = startInd;
 	boundaryArr[curBlockInd].second = range;
 	curBlockInd++;
 	cout<< "Total Unique blocks found: " << curBlockInd << endl;
+	cout<< "Total Comp Required: "<< totalCompRequired << endl;
 }
 
 void sortByBlockSizes() {
@@ -680,7 +947,7 @@ void findBlockAssignments() {
 		for (int j = lastInd-1; j > startInd; j--)
 		{
 			//cout<< "SegFault for j " << j << endl;
-			long long int curBlockSize = pow(boundaryArr[j].second,2);
+			long long int curBlockSize = (long long int) ceil((pow(boundaryArr[j].second,2)-boundaryArr[j].second)/2) ;
 			if ((curAssignmentSize+curBlockSize) < threshold) {
 				assignedBlocklists[i].push_back(boundaryArr[j]);
 				curAssignmentSize = curAssignmentSize + curBlockSize;
@@ -728,58 +995,6 @@ void findConnComp()
     cout<< "Single Linkage Connected Components: " << approxConnectedComponents.size()<<endl;
 }
 
-void findFinalConnectedComp(int intraBlockingCompDist, int intraNonBlockingCompDist) {
-    int totalNodes = 0;
-    int pairsAccessed = 0;
-    for (auto const& p : approxConnectedComponents) {
-        pairsAccessed++;
-        int numComponents = p.second.size();
-        totalNodes+=numComponents;
-        bool distmat[numComponents][numComponents];
-        vector<vector<string>> dataArr(numComponents); // to make cache-efficient, keep records in a row
-		// Copy Data in cluster
-        for(int c=0; c<p.second.size(); c++) {
-            dataArr[c] = vec2D[uniqueRecords[p.second[c]].first];
-        };
-
-		// generate a 2D matrix filled with all pair comparision results
-        for (int i =0; i<numComponents; i++) {
-            distmat[i][i] = true;
-            for (int j = i+1; j < numComponents; j++)
-            {
-                if (isLinkageOk(dataArr[i], dataArr[j], intraBlockingCompDist, intraNonBlockingCompDist)) {
-                    distmat[i][j] = true;
-                    distmat[j][i] = true;
-                } else {
-                    distmat[i][j] = false;
-                    distmat[j][i] = false;
-                }
-            }
-        }
-
-        bool nodesConsidered[numComponents];
-        for(int i=0; i<numComponents; i++) {
-            nodesConsidered[i] = false;
-        }
-
-        for(int i=0; i<numComponents; i++) {
-            if(nodesConsidered[i] == false) {
-                vector<int> connectedComponent;
-                connectedComponent.push_back(p.second[i]);
-                nodesConsidered[i] = true;
-                for(int j=0; j<numComponents; j++) {
-                    if ((distmat[i][j] == true) && (nodesConsidered[j]==false)) {
-                        connectedComponent.push_back(p.second[j]);
-                        nodesConsidered[j] = true;
-                    }
-                }
-                finalConnectedComponents.push_back(connectedComponent);
-            }
-        }
-    }
-    cout<< "Total Nodes: "<< totalNodes << " unique records: " << totalUniqueRecords << endl;
-    cout<< "Complete Linkage Components: "<< finalConnectedComponents.size()<<endl;
-}
 
 // Threading related Functions
 
@@ -812,25 +1027,20 @@ void getEdgesFromBlockedRecords(int id, vector<pair<int, vector<string>>> &block
             int recID_i = blockRecords[i].first;
             int recID_j = blockRecords[j].first;
             if (!uf[id].isConnected(recID_i, recID_j)) {
-				if (isLinkageOk(blockRecords[i].second, blockRecords[j].second, blockingDistanceThreshold, nonBlockingDistanceThreshold)) {
+				if (isLinkageOk(blockRecords[i].second, blockRecords[j].second)) {
                     uf[id].weightedUnion(recID_i, recID_j);
                 }
 			}
-        }  
+        }
 	}
 }
 
 void doNormalThreadedBlocking(int tID) {
-	cout<< "Doing Super Blocking for Thread: " << tID << endl;
-	cout<< "Thread: "<< tID << " has " << assignedBlocklists[tID].size() << " blocks" << endl;
+	cout<< "Thread: "<< tID << " was assigned " << assignedBlocklists[tID].size() << " blocks" << endl;
 	for(int i = 0; i< assignedBlocklists[tID].size(); i++) {
 		pair<int, int> block = assignedBlocklists[tID][i];
-		// cout<< "Block Starts" << block.first << " And ends "<< block.first + block.second << endl;
 		vector<pair<int, vector<string>>> blockRecords;
-		// cout<< "Getting Record Blocks" << endl;
 		getBlockRecords(block, blockRecords);
-		// cout<< "Record Blocks Size " << blockRecords.size() << endl; 
-		// cout<< "Getting Edges from Blocked Records" << endl;
 		getEdgesFromBlockedRecords(tID, blockRecords);
 	}
 	cout << "Thread "<< tID << " Total Edges: "<< totalUniqueRecords - uf[tID].getSetCount() << endl;
@@ -846,15 +1056,32 @@ void *threadDriver(void* ptr) {
 }
 
 int main(int argc, char** argv) {
-    // string filePath = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/";
-    string filePath = "/home/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/";
-    string out_file_path = "/home/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/data/";
 
+	// IO PATHS
+	// Input
+
+    string filePath = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/";
+    string out_file_path = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/data/";
+
+	// string filePath = "/home/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/";
+    // string out_file_path = "/home/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/data/";
+	
 	string fileName = argv[1];
     filePath = filePath + argv[1];
-    getFormattedDataFromCSV(filePath);
+	getFormattedDataFromCSV(filePath);
 	totalRecords = vec2D.size();
 	getCombinedData();
+
+	// Outputs
+    string fileNameSuffix = "_Pr1_LastNameStartInterlaced_3232_5_Superblocking";
+	string out_name1 = out_file_path + "out_TakeHitDubSL_Dedup_CompleteLinkage_"+ fileName + fileNameSuffix;
+	string out_name2 = out_file_path + "out_TakeHitDubSL_Unique_SingleLinkage_"+ fileName + fileNameSuffix;
+	string out_name3 = out_file_path + "out_TakeHitDubSL_Unique_SingleLinkage_RecInd_"+ fileName + fileNameSuffix;
+	string out_name4 = out_file_path + "out_TakeHitDubSL_ExactClustering_RecInd_"+ fileName + fileNameSuffix;
+	string out_name5 = out_file_path + "out_TakeHitDubSL_ALL_SingleLinkage_"+ fileName + fileNameSuffix;
+	string out_name6 = out_file_path + "out_TakeHitDubSL_ALL_RECID_SingleLinkage_"+ fileName + fileNameSuffix;
+
+	string stat_file_name = "stat_"+ fileName + fileNameSuffix;
 
 	// Sort the Combined Data
 	clock_t currTS_p0	= clock();
@@ -865,7 +1092,11 @@ int main(int argc, char** argv) {
 
 	// Get Unique Records
 	clock_t currTS_p1	= clock();
+	getConflictClusters();
+	getNoConflictCombinedData();
+	radixSort(noConflictCombinedData);
 	getExactMatches();
+	getFullClustersFromExactMatchs();
     getUniqueEntries();
 	double exactClustering_p1_t	= (double)(clock() - currTS_p1) / CLOCKS_PER_SEC;
     cout<< "De-duplication Time "<< exactClustering_p1_t << endl;
@@ -896,7 +1127,7 @@ int main(int argc, char** argv) {
 
 	// Thread Working
 	uf.resize(numThreads);
-	for (int i=0; i<numThreads; i++) {
+	for (int i=0; i<=numThreads-1; i++) {
 		uf[i].setVariable(totalUniqueRecords);
 	}
 
@@ -926,7 +1157,6 @@ int main(int argc, char** argv) {
 	// Merge edges
 	clock_t currTS_p6	= clock();
 	mergeEdges();
-	cout<< "Edges Merged" << endl;
 	doSortedComp();
 	double edgeMergingDone_p6_t	= (double)(clock() - currTS_p6) / CLOCKS_PER_SEC;
 	cout<< "Get edge Merging Time "<< edgeMergingDone_p6_t << endl;
@@ -938,40 +1168,27 @@ int main(int argc, char** argv) {
     double findComp_p7_t	= (double)(clock() - currTS_p7) / CLOCKS_PER_SEC;
     cout<< "Connected Comp Find Time "<< findComp_p7_t << endl;
 
-	// Find Connected components (Complete Linkage)
-    clock_t currTS_p8_t	= clock();
-    findFinalConnectedComp(blockingDistanceThreshold, nonBlockingDistanceThreshold);
-    double findFinalComp_t	= (double)(clock() - currTS_p8_t) / CLOCKS_PER_SEC;
-    cout<< "Final Connected Comps Find Time "<< findFinalComp_t << endl;
+	// Write The clusters to Files
+	writeCompleteClustersFromDeduplication(out_name1);
+	writeUniqueRecordConnectedComponents(out_name2, out_name3);
+	writeCandidateExactClusters(out_name4);
+	writeSingleLinkageFullOutput(out_name5, out_name6);
 
-	// Total Time Required
-    double total_t	= (double)(clock() - currTS_p0) / CLOCKS_PER_SEC;
-	cout<< "Total processor run time "<< total_t << endl;
-	double allDone_pX_Wt = getWallTime();
-	cout<< "Get Total Wall Time "<< (double)(allDone_pX_Wt - currWallT_p0) << endl;
 
-	// Outputs
-    // string out_file_path = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/data/";
-    // string out_file_path = "/home/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/data/";
-	string out_name1 = out_file_path + "out_single_linkage_"+ fileName + "_psb_fullName_unionFind_1_threads";
-	string out_name2 = out_file_path + "out_complete_linkage_"+ fileName + "_psb_fullName_unionFind_1_threads";
-	string stat_file_name = "stat_"+ fileName + "_psb_fullName_unionFind_1_threads";
-
-	writeApproximateConnectedComponentToFile(out_name1);
-	writeFinalConnectedComponentToFile(out_name2);
+    double total_SB_t	= (double)(clock() - currTS_p0) / CLOCKS_PER_SEC;
+	cout<< "Super Blocking: Total processor run time "<< total_SB_t << endl;
+	double SB_done_pX_Wt = getWallTime();
+	cout<< "SuperBlocking: Get Total Wall Time "<< (double)(SB_done_pX_Wt - currWallT_p0) << endl;
 
 	string stat_file_path = out_file_path + stat_file_name;
     ofstream stat_file;
 	stat_file.open(stat_file_path);
 	stat_file << "DataSize: "<< vec2D.size() << endl;
-	// stat_file << "Number of Possible comparison: " << tot_possible_com << endl;
-	// stat_file << "Number of pairs compared: " << total_comp  << endl;
-	// stat_file << "Reduction Ratio:" << ((long double)total_comp / (long double) tot_possible_com) << endl;
 	stat_file << "Number of Edges: "<< totalUniqueRecords-uf[numThreads-1].getSetCount() << endl;
 	stat_file << "Total Single Clusters: " << approxConnectedComponents.size()<< endl;
-	stat_file << "Total Complete Clusters " << finalConnectedComponents.size() << endl;
-	stat_file << "Total Processor Time taken: " << total_t << " Seconds" << endl;
-	stat_file << "Total Wall Time Taken: " << (double)(allDone_pX_Wt - currWallT_p0) << " Seconds" << endl;
+	stat_file << "Total Complete Clusters (Deduplication) " << finalConnectedComponents.size() << endl;
+	stat_file << "Total Processor Time taken: " << total_SB_t << " Seconds" << endl;
+	stat_file << "Total Wall Time Taken: " << (double)(SB_done_pX_Wt) << " Seconds" << endl;
 	stat_file.close();
 
     return 0;

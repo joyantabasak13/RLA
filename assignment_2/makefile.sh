@@ -1,7 +1,36 @@
-g++ -std=c++17 -O3 -I /usr/local/boost_1_80_0/ -I /usr/local/  -o single_to_completeLinkage_analysis single_to_completeLinkage_analysis.cpp
+# g++ -std=c++17 -O3 -I /usr/local/boost_1_80_0/ -I /usr/local/  -o single_to_completeLinkage_analysis single_to_completeLinkage_analysis.cpp
 
-./single_to_completeLinkage_analysis NC_voterData_5M_Source_Annotated.csv
+# ./single_to_completeLinkage_analysis NC_voterData_5M_Source_Annotated.csv
 
+g++ -std=c++17 -O3 -I /usr/local/boost_1_80_0/ -o pGenRLA_v4_NC pGenRLA_v4_NC.cpp
+
+# ./pGenRLA_v4_NC nc_test_5k.csv
+
+./pGenRLA_v4_NC nc_TEST.csv
+
+# ./pGenRLA_v4_NC NC_voterData_5M_Source_Annotated.csv
+
+
+# g++ -std=c++17 -O3 -I /usr/local/boost_1_80_0/ -o NC_voterData_analysis_threshold NC_voterData_analysis_threshold.cpp
+
+# ./NC_voterData_analysis_threshold nc_test_5k.csv
+
+# ./NC_voterData_analysis_threshold NC_voterData_5M_Source_Annotated.csv
+
+
+
+# g++ -std=c++17 -O3 -I /usr/local/boost_1_80_0/ -o NC_voterData_analysis_BlockingKey NC_voterData_analysis_BlockingKey.cpp
+
+# ./NC_voterData_analysis_BlockingKey nc_test_5k.csv
+
+# ./NC_voterData_analysis_BlockingKey NC_voterData_5M_Source_Annotated.csv
+
+
+# g++ -std=c++17 -O3 -I /usr/local/boost_1_80_0/ -o pGenRLA_v3_NC pGenRLA_v3_NC.cpp
+
+# # ./pGenRLA_v3_NC nc_test_5k.csv
+
+# ./pGenRLA_v3_NC NC_voterData_5M_Source_Annotated.csv
 
 # g++ -std=c++17 -O3 -I /usr/local/boost_1_80_0/ -o pGenRLA_v2_NC pGenRLA_v2_NC.cpp
 
@@ -11,13 +40,13 @@ g++ -std=c++17 -O3 -I /usr/local/boost_1_80_0/ -I /usr/local/  -o single_to_comp
 
 # ./pGenRLA_v2 NC_VoterData_5M.csv
 
-# g++ -std=c++17 -O3 -I /usr/local/boost_1_80_0/ -o NC_voterData_analysis NC_voterData_analysis.cpp
+# g++ -std=c++17 -O3 -I /usr/local/boost_1_80_0/ -I /usr/local/ -o NC_voterData_analysis NC_voterData_analysis.cpp
 
 # ./NC_voterData_analysis NC_voterData_5M_Source_Annotated.csv
 
-# g++ -std=c++17 -O3 -I /usr/local/boost_1_80_0/ -o prla_normalBlocking_unionFind prla_normalBlocking_unionFind.cpp
+# g++ -std=c++17 -O3 -I /usr/local/boost_1_80_0/ -o prla_normalBlocking_v2 prla_normalBlocking_v2.cpp
 
-# ./prla_normalBlocking_unionFind simulated_records_original_1000_records.csv
+# ./prla_normalBlocking_v2 simulated_records_UnionFindTest_80000_records.csv
 
 # g++ -std=c++17 -O3 -I /usr/local/boost_1_80_0/ -o prla_superBlocking prla_superBlocking.cpp
 

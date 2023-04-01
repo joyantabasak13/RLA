@@ -215,9 +215,11 @@ def get_cluster_sizes(clusters):
 
 ### main ###
 
-# file_path = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/Server_results/genRLA_NC/out_superblocking_RLA_SingleLinkage_NC_VoterData_5M.csv_pGEN_NC_lastName_6_threads"
-file_path = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/Server_results/genRLA_NC/out_SB_RLA_SingleLinkage_NO_DEDUP_NC_voterData_5M_Source_Annotated.csv_pGEN_NC_lastName_6_threads_dist_1_9"
-records_path = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/NC_voterData_5M_Source_Annotated.csv"
+file_path = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/Server_results/genRLA_NC/out_TakeHitDubSL_ALL_SingleLinkage_NC_voterData_5M_Source_Annotated.csv_Pr1_LastNameStartInterlaced_3232_5_Superblocking";
+records_path = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/Server_results/genRLA_NC/out_TakeHitDubSL_ALL_RECID_SingleLinkage_NC_voterData_5M_Source_Annotated.csv_Pr1_LastNameStartInterlaced_3232_5_Superblocking"
+# file_path = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/Server_results/genRLA_NC/out_TakeHitDubSL_Unique_SingleLinkage_NC_voterData_5M_Source_Annotated.csv_Pr1_LastNameStartInterlaced_3232_5_Superblocking"
+# records_path = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/Server_results/genRLA_NC/out_TakeHitDubSL_Unique_SingleLinkage_RecInd_NC_voterData_5M_Source_Annotated.csv_Pr1_LastNameStartInterlaced_3232_5_Superblocking"
+
 ### Calculate Cluster Accuracy
 
 recID_indices, records_attrs = get_recID_indices(records_path)
@@ -258,9 +260,13 @@ print(f"Linkage Recall: {recall}")
 print(f"Linkage f1 score: {f1_score}")
 print(f"Linkage Accuracy: {accuracy}")
 cluster_sizes_dict = get_cluster_sizes(per_cluster_ssn_group_dict)
-print(cluster_sizes_dict)
-
-# print_large_clusters(per_cluster_ssn_group_dict, 10)
+total_cluster_size = 0
+for x in cluster_sizes_dict:
+    total_cluster_size = total_cluster_size + x
+    if x > 1000:
+        print(f"{x} : {cluster_sizes_dict[x]}")
+print(f"Average Cluster Size: {total_cluster_size/len(cluster_sizes_dict)}")
+print_large_clusters(per_cluster_ssn_group_dict, 10)
 
 
 # 5212361,mary,young,sprucepine,28777

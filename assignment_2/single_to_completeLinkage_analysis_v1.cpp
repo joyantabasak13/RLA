@@ -1,3 +1,5 @@
+// Single Linkage to complete linkage using a priority queue
+
 #include <algorithm>
 #include <chrono>
 #include <cmath>
@@ -28,14 +30,15 @@ int threshold = 99;
 int totalRecords;
 int lenMax;
 int attributes;
-int blockFieldIndex = 4;
+int blockFieldIndex = 2;
 int blockingDistanceThreshold = 2;
-int singleNonBlockingDistanceThreshold = 5;
-int cumulativeNonBlockingDistanceThreshold = 10;
+int singleNonBlockingDistanceThreshold = 2;
+int cumulativeNonBlockingDistanceThreshold = 5;
+long long int shifter = pow(10,10);
 
 vector<vector<string> > vec2D;
 vector<vector<int> > cluster2D;
-map<int, vector<int>> completeClusters; 
+map<long long int, vector<int>> completeClusters; 
 
 class UnionFind {
   public:
@@ -292,7 +295,7 @@ int calculateBasicED(string& str1, string& str2, int threshRem)
 int getDistance(vector<string>& vec1, vector<string>& vec2){
 	int dist = 0;
 	for(int i=1; i<attributes-1; i++){
-		dist = dist + calculateBasicED(vec1[i], vec2[i], threshold);
+		dist = dist + calculateBasicED(vec1[i], vec2[i], singleNonBlockingDistanceThreshold);
 	}
 	return dist;
 }
@@ -345,7 +348,7 @@ void getSingleLinakgeClusters(string& filePath) {
 void sourceConsistentCompleteLinkage(){
 	for(int i=0; i<cluster2D.size(); i++){
 		int numComponents = cluster2D[i].size();
-		// cout<< "Cluster: " << i << " with Components: " << numComponents << endl;
+		cout<< "Cluster: " << i << " with Components: " << numComponents << endl;
 		vector<vector<string>> records(numComponents);
 		UnionFind uf_finalClusters;
 		uf_finalClusters.setVariable(numComponents);
@@ -375,11 +378,14 @@ void sourceConsistentCompleteLinkage(){
 			for (int k = j + 1 ; k < numComponents; k++) {
 				if(records[j][attributes-1] != records[k][attributes-1]) {
 					int dist = getDistance(records[j],records[k]);
+					if(dist>cumulativeNonBlockingDistanceThreshold) {
+						continue;
+					}
 					pair<int, int> uv;
 					uv.first = j;
 					uv.second = k;
 					pair<int, pair<int,int>> edge;
-					edge.first = dist;
+					edge.first = dist*(-1);
 					edge.second = uv;
 					pq.push(edge);
 				}
@@ -419,14 +425,14 @@ void sourceConsistentCompleteLinkage(){
 		}
 
 		for(int j=0; j<numComponents; j++) {
-			int root = uf_finalClusters.find(j);
-			completeClusters[cluster2D[i][root]].push_back(cluster2D[i][j]);
+			long long int root = uf_finalClusters.find(j);
+			root = i*shifter + cluster2D[i][root];
+			completeClusters[root].push_back(cluster2D[i][j]);
 		}
 
-		if(i%100000 == 0) {
-			cout<< "Processed " << i << " Single Linkage Clusters" << endl;
-		}
-
+		// if(i%10000 == 0 && i>1) {
+		// 	cout<< "Processed " << i << " Single Linkage Clusters" << endl;
+		// }
 	}
 }
 
@@ -452,10 +458,10 @@ void getCompleteClusters(string& fileName) {
 int main(int argc, char** argv) {
 
 	// IO PATHS
-    string filePath = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/";
+    string filePath = "/home/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/";
     string fileName = argv[1];
-	string singleLinkageClusterFile = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/Server_results/genRLA_NC/out_SB_RLA_SingleLinkage_RecInd_NO_DEDUP_NC_voterData_5M_Source_Annotated.csv_pGEN_NC_lastName_6_threads_dist_1_9";
-    string completeLinkageClusterFile = singleLinkageClusterFile + "_COMPLETE";
+	string singleLinkageClusterFile = "/home/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/data/out_SB_RLA_SingleLinkage_RecInd_NO_DEDUP_NC_voterData_5M_Source_Annotated.csv_pGEN_NC_lastName_6_threads_dist_2_2_5_ImprovCompare";
+    string completeLinkageClusterFile = singleLinkageClusterFile + "_COMPLETE_MaxPriorityQueue";
 	filePath = filePath + argv[1];
 	getData(filePath);
 	totalRecords = vec2D.size();

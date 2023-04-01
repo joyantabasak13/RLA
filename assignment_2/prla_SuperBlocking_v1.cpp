@@ -25,6 +25,9 @@
 using namespace std;
 
 int threshold = 99;
+int blockingDistanceThreshold = 2;
+int nonBlockingDistanceThreshold = 2;
+int totalNonBlockingAttrThreshold = 2;
 int totalRecords;
 int lenMax;
 int totalUniqueRecords;
@@ -565,32 +568,23 @@ void doSortedComp() {
 	cout<< "Edges Added: "<< extraEdges << endl;
 }
 
-bool isLinkageOk(vector<string> &a, vector<string> &b, int threshold)
+bool isLinkageOk(vector<string> &a, vector<string> &b, int blockingThreshold, int singleNonBlockingAttrThreshold)
 {
-    //int dist = 0;
-	int name_dist = calculateBasicED(a[1], b[1], 1);
-    //dist +=name_dist;
-    if (name_dist <= threshold) {
-        int dod_dist = calculateBasicED(a[2], b[2], 1);
-        //dist+=dod_dist;   
-        if (dod_dist <= threshold) {
-            int dob_dist = calculateBasicED(a[3], b[3], 1);
-            //dist+=dod_dist;
-            // if(dist==0) {
-            //     //Self edge?
-            //     return false;
-            // }
-            if (dob_dist <= threshold) {
-                return true;
-            } else {
-                return false;
-            }
-        } else {
-            return false;
-        }
-    } else {
-        return false;
+	int blockField_dist = calculateBasicED(a[1], b[1], blockingThreshold);
+    if (blockField_dist <= threshold) {
+		int singleAttributeDist = 0;
+		int cumulativeNonBlockingDist = 0;
+		for (int i = 2; i < a.size(); i++)
+		{
+			singleAttributeDist = calculateBasicED(a[i], b[i], singleNonBlockingAttrThreshold);
+			cumulativeNonBlockingDist += singleAttributeDist;
+			if (cumulativeNonBlockingDist > totalNonBlockingAttrThreshold){
+				return false;
+			}
+		}
+		return true;     
     }
+	return false;
 }
 
 void generateEdgilist(set<int>& blockRowArr)
@@ -622,7 +616,7 @@ void generateEdgilist(set<int>& blockRowArr)
             }
 
             if (!set_of_edges.count(edge_pair)) {
-                if (isLinkageOk(dataArr[i], dataArr[j], 1)) {
+                if (isLinkageOk(dataArr[i], dataArr[j], blockingDistanceThreshold, nonBlockingDistanceThreshold)) {
                     set_of_edges.insert(edge_pair);
                 }
             }
@@ -744,7 +738,7 @@ void findFinalConnectedComp(int intraCompDist) {
             distmat[i][i] = true;
             for (int j = i+1; j < numComponents; j++)
             {
-                if (isLinkageOk(dataArr[i], dataArr[j], intraCompDist)) {
+                if (isLinkageOk(dataArr[i], dataArr[j], blockingDistanceThreshold, nonBlockingDistanceThreshold)) {
                     distmat[i][j] = true;
                     distmat[j][i] = true;
                 } else {
@@ -861,7 +855,7 @@ void getEdgesFromBlockedRecords(int id, vector<pair<int, vector<string>>> blockR
             }
 
             if (!sets_of_edges_t[id].count(edge_pair)) {
-                if (isLinkageOk(blockRecords[i].second, blockRecords[j].second, 1)) {
+                if (isLinkageOk(blockRecords[i].second, blockRecords[j].second, blockingDistanceThreshold, nonBlockingDistanceThreshold)) {
                     sets_of_edges_t[id].insert(edge_pair);
                 }
             }
@@ -891,8 +885,8 @@ void *threadDriver(void* ptr) {
 }
 
 int main(int argc, char** argv) {
-    string filePath = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/";
-    // string filePath = "/home/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/";
+    // string filePath = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/";
+    string filePath = "/home/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/";
     string fileName = argv[1];
     filePath = filePath + argv[1];
     getFormattedDataFromCSV(filePath);
@@ -983,8 +977,8 @@ int main(int argc, char** argv) {
 	double allDone_pX_Wt = getWallTime();
 	cout<< "Get Total Wall Time "<< (double)(allDone_pX_Wt - currWallT_p0) << endl;
 
-    string out_file_path = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/data/";
-    // string out_file_path = "/home/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/data/";
+    // string out_file_path = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/data/";
+    string out_file_path = "/home/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/data/";
 	string out_name1 = out_file_path + "out_single_linkage_"+ fileName + "_parallel_super_blocking";
 	string out_name2 = out_file_path + "out_complete_linkage_"+ fileName + "_parallel_super_blocking";
 	string stat_file_name = "stat_"+ fileName + "_parallel_super_blocking";

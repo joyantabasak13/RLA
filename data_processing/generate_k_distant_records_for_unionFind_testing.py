@@ -23,6 +23,7 @@ def get_original_records(records, num):
     sampled_records = [records[i] for i in indices]
     return sampled_records
 
+
 def tag_original_records(records, tag):
     simulated_records = []
     for record in records:
@@ -165,70 +166,36 @@ def main():
     for copy_record in exact_record_copies:
         simulated_records.append(copy_record.copy())
 
-    # generate records with edited non-blocking atributes
-    non_blocking_dist = 1
-    non_blocking_attribute_indices = [2,3]
-    non_blocking_attribute_edited_records = generate_non_blocking_attribute_edited_records(original_tagged_records.copy(), non_blocking_dist, non_blocking_attribute_indices, non_blocking_edit_tag)
-
-    for edited_records in non_blocking_attribute_edited_records:
-        simulated_records.append(edited_records.copy())
-
     # generate records with 1 edit distance in blocking attr
     block_attr_dist = 1
     block_attr_indices = [1]
-    block_attr_edit_distance_1_records = generate_block_attr_edited_records(original_tagged_records.copy(), block_attr_dist, block_attr_indices, blocking_edit_1_tag)
+    block_attr_edit_distance_1_records_2 = generate_block_attr_edited_records(original_tagged_records.copy(),
+                                                                            block_attr_dist, block_attr_indices,
+                                                                            blocking_edit_1_tag)
+
+    block_attr_edit_distance_1_records = generate_block_attr_edited_records(original_tagged_records.copy(),
+                                                                            block_attr_dist, block_attr_indices,
+                                                                            blocking_edit_1_tag)
 
     for edited_records in block_attr_edit_distance_1_records:
         simulated_records.append(edited_records.copy())
-
-    # generate records with incremental 1 edit distance
-    incremental_block_attr_dist = 1
-    incremental_block_attr_indices = [1]
-    incremental_block_attr_edit_distance_1_records = generate_block_attr_edited_records(block_attr_edit_distance_1_records, incremental_block_attr_dist, incremental_block_attr_indices, incremental_blocking_edit_1_tag)
-
-    # for edited_records in incremental_block_attr_edit_distance_1_records:
-    #     simulated_records.append(edited_records.copy())
-
-    # generate records with 2 edit distance in block field
-    block_attr_dist = 2
-    block_attr_indices = [1]
-    block_attr_edit_distance_2_records = generate_block_attr_edited_records(original_tagged_records.copy(),
-                                                                            block_attr_dist, block_attr_indices,
-                                                                            blocking_edit_2_tag)
-    for edited_records in block_attr_edit_distance_2_records:
+    for edited_records in block_attr_edit_distance_1_records_2:
         simulated_records.append(edited_records.copy())
 
-    # generate records with 1 edit distance in blocking attr over 1 edit distance in non-blocking fields
-    block_attr_dist = 1
-    block_attr_indices = [1]
-    block_attr_edit_distance_1_non_blocking_edit_1_records = generate_block_attr_edited_records(non_blocking_attribute_edited_records.copy(),
-                                                                            block_attr_dist, block_attr_indices,
-                                                                            blocking_edit_1_with_non_blocking_edit_1_tag)
+    # generate records with edited non-blocking atributes on top of 1 edit distance in blockfield
+    non_blocking_dist = 1
+    non_blocking_attribute_indices = [2,3]
+    non_blocking_attribute_edited_records = generate_non_blocking_attribute_edited_records(block_attr_edit_distance_1_records.copy(), non_blocking_dist, non_blocking_attribute_indices, non_blocking_edit_tag)
 
-    # for edited_records in block_attr_edit_distance_1_non_blocking_edit_1_records:
-    #     simulated_records.append(edited_records.copy())
+    non_blocking_attribute_edited_records_2 = generate_non_blocking_attribute_edited_records(
+        block_attr_edit_distance_1_records_2.copy(), non_blocking_dist, non_blocking_attribute_indices,
+        non_blocking_edit_tag)
 
-    # generate records with 1 incremental blocking edit distance over 1 blocking and 1 non-bloking distances
-    block_attr_dist = 1
-    block_attr_indices = [1]
-    incremental_block_attr_edit_distance_1_non_blocking_edit_1_records = generate_block_attr_edited_records(
-        block_attr_edit_distance_1_non_blocking_edit_1_records.copy(),
-        block_attr_dist, block_attr_indices,
-        incremental_blocking_edit_1_with_non_blocking_edit_1_tag)
-
-    # for edited_records in incremental_block_attr_edit_distance_1_non_blocking_edit_1_records:
-    #     simulated_records.append(edited_records.copy())
-
-    # generate records with 2 edit distance in blocking attr over 1 edit distances in non-blocking fields
-    block_attr_dist = 2
-    block_attr_indices = [1]
-    block_attr_edit_distance_2_non_blocking_edit_1_records = generate_block_attr_edited_records(
-        non_blocking_attribute_edited_records.copy(),
-        block_attr_dist, block_attr_indices,
-        blocking_edit_2_with_non_blocking_edit_1_tag)
-
-    for edited_records in block_attr_edit_distance_2_non_blocking_edit_1_records:
+    for edited_records in non_blocking_attribute_edited_records:
         simulated_records.append(edited_records.copy())
+    for edited_records in non_blocking_attribute_edited_records_2:
+        simulated_records.append(edited_records.copy())
+
 
     # print("Printing Simulated Records")
     # for x in simulated_records:
@@ -238,7 +205,7 @@ def main():
     df = pd.DataFrame(simulated_records)
     df = df.sample(frac=1).reset_index(drop=True)
     print(len(df))
-    filename = "simulated_records_original_" + str(target_number_of_original_records) + "_records.csv"
+    filename = "simulated_records_UnionFindTest_" + str(target_number_of_original_records) + "_records.csv"
     df.to_csv(filename, index=False, header=False)
 
 

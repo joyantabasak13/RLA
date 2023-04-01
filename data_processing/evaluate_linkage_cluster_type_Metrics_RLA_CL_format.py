@@ -175,7 +175,7 @@ def get_cluster_sizes(clusters):
 
 ### main ###
 
-file_path = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/Server_results/genRLA_NC/out_superblocking_RLA_CompleteLinkage_NC_VoterData_5M.csv_pGEN_NC_lastName_6_threads"
+file_path = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/Server_results/26Mar/out_complete_linkage_simulated_records_UnionFindTest_80000_records.csv_parallel_normal_blocking_fullName_1_threads"
 # file_path = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/Server_results/genRLA_NC/out_superblocking_RLA_SingleLinkage_NC_VoterData_5M.csv_pGEN_NC_lastName_6_threads"
 
 ### Calculate Cluster Accuracy

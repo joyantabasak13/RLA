@@ -25,8 +25,9 @@
 using namespace std;
 
 int threshold = 99;
-int blockingDistanceThreshold = 4;
+int blockingDistanceThreshold = 2;
 int nonBlockingDistanceThreshold = 2;
+int totalNonBlockingAttrThreshold = 4;
 int totalRecords;
 int lenMax;
 int totalUniqueRecords;
@@ -336,20 +337,21 @@ int getKmerCount() {
 	return totalKmerCount;
 }
 
-bool isLinkageOk(vector<string> &a, vector<string> &b, int blockingThreshold, int nonBlockingThreshold)
+bool isLinkageOk(vector<string> &a, vector<string> &b, int blockingThreshold, int singleNonBlockingAttrThreshold)
 {
-	int name_dist = calculateBasicED(a[1], b[1], blockingThreshold);
-    if (name_dist <= threshold) {
-		int nonBlockingDist = 0;
-        int dod_dist = calculateBasicED(a[2], b[2], nonBlockingThreshold);
-        nonBlockingDist+=dod_dist;   
-        if (nonBlockingDist <= nonBlockingThreshold) {
-            int dob_dist = calculateBasicED(a[3], b[3], nonBlockingThreshold-nonBlockingDist);
-            nonBlockingDist+=dob_dist;
-            if (nonBlockingDist <= nonBlockingThreshold) {
-                return true;
-            } 
-        }
+	int blockField_dist = calculateBasicED(a[1], b[1], blockingThreshold);
+    if (blockField_dist <= threshold) {
+		int singleAttributeDist = 0;
+		int cumulativeNonBlockingDist = 0;
+		for (int i = 2; i < a.size(); i++)
+		{
+			singleAttributeDist = calculateBasicED(a[i], b[i], singleNonBlockingAttrThreshold);
+			cumulativeNonBlockingDist += singleAttributeDist;
+			if (cumulativeNonBlockingDist > totalNonBlockingAttrThreshold){
+				return false;
+			}
+		}
+		return true;     
     }
 	return false;
 }
@@ -781,8 +783,8 @@ void *threadDriver(void* ptr) {
 }
 
 int main(int argc, char** argv) {
-    string filePath = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/";
-    // string filePath = "/home/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/";
+    // string filePath = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/";
+    string filePath = "/home/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/";
     string fileName = argv[1];
     filePath = filePath + argv[1];
     getFormattedDataFromCSV(filePath);
@@ -882,8 +884,8 @@ int main(int argc, char** argv) {
 	cout<< "Get Total Wall Time "<< (double)(allDone_pX_Wt - currWallT_p0) << endl;
 
 	// Outputs
-    string out_file_path = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/data/";
-    // string out_file_path = "/home/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/data/";
+    // string out_file_path = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/data/";
+    string out_file_path = "/home/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/data/";
 	string out_name1 = out_file_path + "out_single_linkage_"+ fileName + "_pnb_fullBlocking_unionFind_1_threads";
 	string out_name2 = out_file_path + "out_complete_linkage_"+ fileName + "_pnb_fullBlocking_unionFind_1_threads";
 	string stat_file_name = "stat_"+ fileName + "_pnb_fullBlocking_unionFind_1_threads";
