@@ -6,9 +6,9 @@ g++ -std=c++17 -O3 -I /usr/local/boost_1_80_0/ -o pGenRLA_v4_NC pGenRLA_v4_NC.cp
 
 # ./pGenRLA_v4_NC nc_test_5k.csv
 
-./pGenRLA_v4_NC nc_TEST.csv
+# ./pGenRLA_v4_NC nc_TEST.csv
 
-# ./pGenRLA_v4_NC NC_voterData_5M_Source_Annotated.csv
+./pGenRLA_v4_NC NC_voterData_5M_Source_Annotated.csv
 
 
 # g++ -std=c++17 -O3 -I /usr/local/boost_1_80_0/ -o NC_voterData_analysis_threshold NC_voterData_analysis_threshold.cpp
