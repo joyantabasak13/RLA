@@ -2,13 +2,21 @@
 
 # ./single_to_completeLinkage_analysis NC_voterData_5M_Source_Annotated.csv
 
-g++ -std=c++17 -O3 -I /usr/local/boost_1_80_0/ -o pGenRLA_v4_NC pGenRLA_v4_NC.cpp
+# g++ -std=c++17 -O3 -I /usr/local/boost_1_80_0/ -o pGenRLA_v4_NC pGenRLA_v4_NC.cpp
 
 # ./pGenRLA_v4_NC nc_test_5k.csv
 
 # ./pGenRLA_v4_NC nc_TEST.csv
 
-./pGenRLA_v4_NC NC_voterData_5M_Source_Annotated.csv
+# ./pGenRLA_v4_NC NC_voterData_5M_Source_Annotated.csv
+
+# g++ -std=c++17 -O3 -I /usr/local/boost_1_80_0/ -o pGenRLA_v5_NC pGenRLA_v5_NC.cpp
+
+# ./pGenRLA_v5_NC nc_test_5k.csv
+
+# ./pGenRLA_v5_NC nc_TEST.csv
+
+# ./pGenRLA_v5_NC NC_voterData_5M_Source_Annotated.csv
 
 
 # g++ -std=c++17 -O3 -I /usr/local/boost_1_80_0/ -o NC_voterData_analysis_threshold NC_voterData_analysis_threshold.cpp
@@ -19,11 +27,11 @@ g++ -std=c++17 -O3 -I /usr/local/boost_1_80_0/ -o pGenRLA_v4_NC pGenRLA_v4_NC.cp
 
 
 
-# g++ -std=c++17 -O3 -I /usr/local/boost_1_80_0/ -o NC_voterData_analysis_BlockingKey NC_voterData_analysis_BlockingKey.cpp
+g++ -std=c++17 -O3 -I /usr/local/boost_1_80_0/ -o NC_voterData_analysis_BlockingKey NC_voterData_analysis_BlockingKey.cpp
 
 # ./NC_voterData_analysis_BlockingKey nc_test_5k.csv
 
-# ./NC_voterData_analysis_BlockingKey NC_voterData_5M_Source_Annotated.csv
+./NC_voterData_analysis_BlockingKey NC_voterData_5M_Source_Annotated.csv
 
 
 # g++ -std=c++17 -O3 -I /usr/local/boost_1_80_0/ -o pGenRLA_v3_NC pGenRLA_v3_NC.cpp

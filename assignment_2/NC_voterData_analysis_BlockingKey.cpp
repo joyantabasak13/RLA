@@ -27,7 +27,8 @@ int threshold = 99;
 int totalRecords;
 int lenMax;
 int attributes;
-int blockFieldIndex = 2;
+int cumulativeDistanceThreshold = 7;
+vector<int> attrDistThreshold{3,3,3,3};
 int base = 36;
 int kmer = 3;
 int prelen = 1;
@@ -618,7 +619,26 @@ void removeRedundentBlockingID(vector<pair<int, int>>& blockingIDList) {
 	// cout << "Total Length: "<< numRecords << " total copies: "<< copy_count << " Total Unique Blocks: "<< totalUniqueBlocks << endl;
 }
 
-void getEdgesFromBlockedRecords(vector<pair<int, int>>& blockRecPairs, UnionFind& uf) {
+bool isLinkageOk(vector<string> &a, vector<string> &b)
+{
+	// This condition is for the dataset under investigation only
+	int cumulativeDist = 0;
+	for (int i = 1; i < attributes-1; i++)
+	{	
+		int dist = calculateBasicED(a[i], b[i], attrDistThreshold[i-1]);
+		if (dist > attrDistThreshold[i-1]){
+			return false;
+		} else {
+			cumulativeDist += dist;
+			if (cumulativeDist > cumulativeDistanceThreshold){
+				return false;
+			}
+		}
+	}
+	return true;
+}
+
+void getEdgesFromBlockedRecords(vector<pair<int, int>>& blockRecPairs, UnionFind& uf, int clusterID) {
 	for (int i = 0; i < blockRecPairs.size() - 1; i++)
 	{
 		
@@ -631,7 +651,9 @@ void getEdgesFromBlockedRecords(vector<pair<int, int>>& blockRecPairs, UnionFind
 		int recID_i_plus_1 = blockRecPairs[i+1].second;
 		
 		if (!uf.isConnected(recID_i, recID_i_plus_1)) {
-			uf.weightedUnion(recID_i, recID_i_plus_1);
+			if(isLinkageOk(sameEntities[clusterID][recID_i], sameEntities[clusterID][recID_i_plus_1])) {
+				uf.weightedUnion(recID_i, recID_i_plus_1);
+			}
 		}
 	}
 }
@@ -677,7 +699,7 @@ bool checkIfConnected(vector<pair<int, int>>& blockRecPairs, int clusterID) {
 	// cout<< "Pairs Sorted: " << blockRecPairs.size() << endl;
 	removeRedundentBlockingID(blockRecPairs);
 	// cout<< "After Redundent pairs Removal remaining Pairs : " << blockRecPairs.size() << endl;
-	getEdgesFromBlockedRecords(blockRecPairs, uf);
+	getEdgesFromBlockedRecords(blockRecPairs, uf, clusterID);
 	// doSortedComp(clusterID, uf);
 	// cout<< "Calculating if Cluster is connected or not" << endl;
 	int numCluster = uf.getSetCount();
@@ -764,7 +786,7 @@ int main(int argc, char** argv) {
 	clock_t currTS_p2	= clock(); 
 	getAllBlockRecPairs();
 	calculateClusterCoverage();
-	calculateReductionRatio();
+	// calculateReductionRatio();
 
 	double totalTime = (double)(clock() - currTS_p1) / CLOCKS_PER_SEC;
 	cout<< "Total time required: " << totalTime << endl;
