@@ -2,13 +2,35 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="8a72cef1-59d8-4d3a-914d-bd4d4ef4703e" name="Changes" comment="">
+      <change afterPath="$PROJECT_DIR$/data_processing/resizeNCVoterData.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/csv-plugin.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/csv-plugin.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/assignment_2/NC_voterData_analysis" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/assignment_2/NC_voterData_analysis_BlockingKey" beforeDir="false" afterPath="$PROJECT_DIR$/assignment_2/NC_voterData_analysis_BlockingKey" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/assignment_2/NC_voterData_analysis_BlockingKey.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/assignment_2/NC_voterData_analysis_BlockingKey.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/assignment_2/NC_voterData_analysis_threshold" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/assignment_2/NC_voterData_analysis_threshold.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/assignment_2/NC_voterData_analysis_threshold.cpp" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/assignment_2/makefile.sh" beforeDir="false" afterPath="$PROJECT_DIR$/assignment_2/makefile.sh" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/assignment_2/my_RLA_NC.cpp" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/assignment_2/my_RLA_NC_ParallelNormalBlocking.cpp" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/assignment_2/my_RLA_NC_ParallelSuperBlocking.cpp" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/assignment_2/pGenRLA_v2" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/assignment_2/pGenRLA_v2_NC" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/assignment_2/pGenRLA_v3_NC" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/assignment_2/pGenRLA_v4_NC" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/assignment_2/pGenRLA_v4_NC.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/assignment_2/pGenRLA_v4_NC.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/assignment_2/pGenRLA_v5_NC" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/assignment_2/pGenRLA_v5_NC.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/assignment_2/pGenRLA_v5_NC.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/assignment_2/prla_NormalBlocking_v1" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/assignment_2/prla_NormalBlocking_v2" beforeDir="false" afterPath="$PROJECT_DIR$/assignment_2/prla_NormalBlocking_v2" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/assignment_2/prla_SuperBlocking_v1" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/assignment_2/prla_normalBlocking_v2.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/assignment_2/prla_normalBlocking_v2.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/assignment_2/prla_superBlocking_v2" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/assignment_2/prla_superBlocking_v3.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/assignment_2/prla_superBlocking_v3.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/assignment_2/single_to_completeLinkage_analysis_v1.cpp" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/data_processing/evaluate_and_investigate_linkage_results.py" beforeDir="false" afterPath="$PROJECT_DIR$/data_processing/evaluate_and_investigate_linkage_results.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/data_processing/evaluate_linkage_cluster_type_Metrics.py" beforeDir="false" afterPath="$PROJECT_DIR$/data_processing/evaluate_linkage_cluster_type_Metrics.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/data_processing/evaluate_linkage_cluster_type_Metrics_RLA_CL_format.py" beforeDir="false" afterPath="$PROJECT_DIR$/data_processing/evaluate_linkage_cluster_type_Metrics_RLA_CL_format.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -54,7 +76,7 @@
       <recent name="$PROJECT_DIR$/results" />
     </key>
   </component>
-  <component name="RunManager" selected="Python.evaluate_and_investigate_linkage_results">
+  <component name="RunManager" selected="Python.evaluate_linkage_cluster_type_Metrics">
     <configuration name="drawChartOfBlockSizes" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="RLA" />
       <option name="INTERPRETER_OPTIONS" value="" />
@@ -139,7 +161,7 @@
       <option name="INPUT_FILE" value="" />
       <method v="2" />
     </configuration>
-    <configuration name="generate_k_distant_records_for_unionFind_testing" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+    <configuration name="resizeNCVoterData" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="RLA" />
       <option name="INTERPRETER_OPTIONS" value="" />
       <option name="PARENT_ENVS" value="true" />
@@ -151,7 +173,7 @@
       <option name="IS_MODULE_SDK" value="true" />
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/data_processing/generate_k_distant_records_for_unionFind_testing.py" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/data_processing/resizeNCVoterData.py" />
       <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
@@ -162,11 +184,11 @@
     </configuration>
     <recent_temporary>
       <list>
-        <item itemvalue="Python.evaluate_and_investigate_linkage_results" />
         <item itemvalue="Python.evaluate_linkage_cluster_type_Metrics" />
-        <item itemvalue="Python.drawChartOfBlockSizes" />
         <item itemvalue="Python.evaluate_linkage_cluster_type_Metrics_RLA_CL_format" />
-        <item itemvalue="Python.generate_k_distant_records_for_unionFind_testing" />
+        <item itemvalue="Python.evaluate_and_investigate_linkage_results" />
+        <item itemvalue="Python.resizeNCVoterData" />
+        <item itemvalue="Python.drawChartOfBlockSizes" />
       </list>
     </recent_temporary>
   </component>

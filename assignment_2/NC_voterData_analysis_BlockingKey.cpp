@@ -315,25 +315,6 @@ void radixSort(vector<pair<int, string> > &strDataArr){
 	}
 }
 
-bool isLinkageOk(vector<string> &a, vector<string> &b, int blockingThreshold, int singleNonBlockingAttrThreshold, int totalNonBlockingAttrThreshold)
-{
-	int blockField_dist = calculateBasicED(a[1], b[1], blockingThreshold);
-    if (blockField_dist <= threshold) {
-		int singleAttributeDist = 0;
-		int cumulativeNonBlockingDist = 0;
-		for (int i = 2; i < a.size(); i++)
-		{
-			singleAttributeDist = calculateBasicED(a[i], b[i], singleNonBlockingAttrThreshold);
-			cumulativeNonBlockingDist += singleAttributeDist;
-			if (cumulativeNonBlockingDist > totalNonBlockingAttrThreshold){
-				return false;
-			}
-		}
-		return true;     
-    }
-	return false;
-}
-
 // I/O Functions
 
 void getFormattedDataFromCSV(string& file_path) {
@@ -515,11 +496,11 @@ void doExactBlocking(string& blockingStr, pair<int, int> recID, vector<pair<int,
 }
 
 void getBlockRecPairs(pair<pair<int, int>, vector<string>>& record, vector<pair<int, pair<int,int>>>& blockRecPairList) {
-	blockIDRange = pow(base,kmer);
+	blockIDRange = pow(base,kmer+1);
 	string blockStr = getBlockingString(record.second);
 	// doExactBlocking(blockStr, record.first, blockRecPairList);
-	doStandardKmerBlocking(blockStr, record.first, blockRecPairList);
-	// doSuperKmerBlocking(blockStr, record.first, blockRecPairList);
+	// doStandardKmerBlocking(blockStr, record.first, blockRecPairList);
+	doSuperKmerBlocking(blockStr, record.first, blockRecPairList);
 }
 
 
@@ -619,25 +600,6 @@ void removeRedundentBlockingID(vector<pair<int, int>>& blockingIDList) {
 	// cout << "Total Length: "<< numRecords << " total copies: "<< copy_count << " Total Unique Blocks: "<< totalUniqueBlocks << endl;
 }
 
-bool isLinkageOk(vector<string> &a, vector<string> &b)
-{
-	// This condition is for the dataset under investigation only
-	int cumulativeDist = 0;
-	for (int i = 1; i < attributes-1; i++)
-	{	
-		int dist = calculateBasicED(a[i], b[i], attrDistThreshold[i-1]);
-		if (dist > attrDistThreshold[i-1]){
-			return false;
-		} else {
-			cumulativeDist += dist;
-			if (cumulativeDist > cumulativeDistanceThreshold){
-				return false;
-			}
-		}
-	}
-	return true;
-}
-
 void getEdgesFromBlockedRecords(vector<pair<int, int>>& blockRecPairs, UnionFind& uf, int clusterID) {
 	for (int i = 0; i < blockRecPairs.size() - 1; i++)
 	{
@@ -651,9 +613,7 @@ void getEdgesFromBlockedRecords(vector<pair<int, int>>& blockRecPairs, UnionFind
 		int recID_i_plus_1 = blockRecPairs[i+1].second;
 		
 		if (!uf.isConnected(recID_i, recID_i_plus_1)) {
-			if(isLinkageOk(sameEntities[clusterID][recID_i], sameEntities[clusterID][recID_i_plus_1])) {
-				uf.weightedUnion(recID_i, recID_i_plus_1);
-			}
+			uf.weightedUnion(recID_i, recID_i_plus_1);
 		}
 	}
 }
@@ -700,7 +660,7 @@ bool checkIfConnected(vector<pair<int, int>>& blockRecPairs, int clusterID) {
 	removeRedundentBlockingID(blockRecPairs);
 	// cout<< "After Redundent pairs Removal remaining Pairs : " << blockRecPairs.size() << endl;
 	getEdgesFromBlockedRecords(blockRecPairs, uf, clusterID);
-	// doSortedComp(clusterID, uf);
+	doSortedComp(clusterID, uf);
 	// cout<< "Calculating if Cluster is connected or not" << endl;
 	int numCluster = uf.getSetCount();
 	if(numCluster == 1) {
@@ -719,11 +679,6 @@ void calculateClusterCoverage() {
 		clock_t currTS_1	= clock();
 		bool isConnected = checkIfConnected(allEntityBlockRecPairs[i], i);
 		fullCheckClockTime += (double)(clock() - currTS_1) / CLOCKS_PER_SEC;
-		// if(i%100000 == 0) {
-		// 	cout<< "Clusteres processed: "<< i << endl;
-		// 	cout<< "Full checkClockTime: " << fullCheckClockTime << endl;
-		// 	cout<< "Sorting Clock Time: " << sortingClockTime << endl;
-		// }
 		if (isConnected) {
 			coveredClusters++;
 			coveredRecords += sameEntities[i].size();
@@ -758,6 +713,9 @@ void calculateReductionRatio() {
 	}
 	double totalComparisions = (double)((double)comparisions) / ((double)1000000000.0);
 	cout<< "Total Comps needed: " << totalComparisions << " Billion" << endl;
+	long double maxPossibleComp = (double)(((double)(pow(totalRecords,2) - totalRecords)) / 2.0);
+	long double blockingReductionRatio = (double)((double)comparisions)/ maxPossibleComp;
+	cout<< "Reduction Ratio: " << blockingReductionRatio << endl;
 }
 
 int main(int argc, char** argv) {
@@ -776,7 +734,7 @@ int main(int argc, char** argv) {
     radixSort(combinedData);
     double sorting_p0_t	= (double)(clock() - currTS_p0) / CLOCKS_PER_SEC;
     cout<< "Sorting time "<< sorting_p0_t << endl;
-	// printSortedRecords();
+
 	// Get same Records
 	clock_t currTS_p1	= clock();
     getSameEntities();
@@ -786,7 +744,7 @@ int main(int argc, char** argv) {
 	clock_t currTS_p2	= clock(); 
 	getAllBlockRecPairs();
 	calculateClusterCoverage();
-	// calculateReductionRatio();
+	calculateReductionRatio();
 
 	double totalTime = (double)(clock() - currTS_p1) / CLOCKS_PER_SEC;
 	cout<< "Total time required: " << totalTime << endl;

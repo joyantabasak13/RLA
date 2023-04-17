@@ -27,7 +27,7 @@ using namespace std;
 int threshold = 99;
 int blockingDistanceThreshold = 2;
 int nonBlockingDistanceThreshold = 2;
-int totalNonBlockingAttrThreshold = 4;
+int totalNonBlockingAttrThreshold = 2;
 int totalRecords;
 int lenMax;
 int totalUniqueRecords;
@@ -56,6 +56,8 @@ vector<pair<int,int> > blockingIDList;
 vector<pair<int, int>> boundaryArr;
 vector<vector<pair<int, int>>> assignedBlocklists;
 vector<vector<int> > edgeArr;
+
+int matArr[50][50] = {0};
 
 class UnionFind {
   public:
@@ -128,14 +130,10 @@ vector<UnionFind> uf;
 int calculateBasicED2(string& str1, string& str2, int threshRem)
 {
 	int row, col, i, j;
-	vector<vector<int> > matArr;
 
 	row		= str1.length() + 1;
 	col 	= str2.length() + 1;
 
-	matArr.resize(row);
-	for(i = 0; i < row; ++i)
-		matArr[i].resize(col, 0);
 
 	for(i = 0; i < row; i++)
 	{
@@ -185,7 +183,6 @@ int calculateBasicED(string& str1, string& str2, int threshRem)
 		string s1, s2;
 		int row, col, diagonal;
 		int i, j;
-		vector<vector<int> > matArr;
 
 		if (str1.length() > str2.length())
 		{
@@ -202,9 +199,6 @@ int calculateBasicED(string& str1, string& str2, int threshRem)
 		col 		= 2 * dist + 1;
 		diagonal 	= dist + s2.length() - s1.length();
 
-		matArr.resize(row);
-		for(i = 0; i < row; ++i)
-			matArr[i].resize(col, 0);
 
 		//if(procID == 1 && checkTemp == 3164)
 			//	cout << str1 << " -- " << str2 << " rt " << dist << endl;
@@ -340,12 +334,14 @@ int getKmerCount() {
 bool isLinkageOk(vector<string> &a, vector<string> &b, int blockingThreshold, int singleNonBlockingAttrThreshold)
 {
 	int blockField_dist = calculateBasicED(a[1], b[1], blockingThreshold);
+	// int blockField_dist = ukkonen(a[1], b[1], blockingThreshold);
     if (blockField_dist <= threshold) {
 		int singleAttributeDist = 0;
 		int cumulativeNonBlockingDist = 0;
 		for (int i = 2; i < a.size(); i++)
 		{
 			singleAttributeDist = calculateBasicED(a[i], b[i], singleNonBlockingAttrThreshold);
+			// singleAttributeDist = ukkonen(a[i], b[i], singleNonBlockingAttrThreshold);
 			cumulativeNonBlockingDist += singleAttributeDist;
 			if (cumulativeNonBlockingDist > totalNonBlockingAttrThreshold){
 				return false;
@@ -886,9 +882,9 @@ int main(int argc, char** argv) {
 	// Outputs
     // string out_file_path = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/data/";
     string out_file_path = "/home/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/data/";
-	string out_name1 = out_file_path + "out_single_linkage_"+ fileName + "_pnb_fullBlocking_unionFind_1_threads";
-	string out_name2 = out_file_path + "out_complete_linkage_"+ fileName + "_pnb_fullBlocking_unionFind_1_threads";
-	string stat_file_name = "stat_"+ fileName + "_pnb_fullBlocking_unionFind_1_threads";
+	string out_name1 = out_file_path + "out_single_linkage_"+ fileName + "_NEW_EDIT_DISTANCE";
+	string out_name2 = out_file_path + "out_complete_linkage_"+ fileName + "_NEW_EDIT_DISTANCE";
+	string stat_file_name = "stat_"+ fileName + "_NEW_EDIT_DISTANCE";
 
 	writeApproximateConnectedComponentToFile(out_name1);
 	writeFinalConnectedComponentToFile(out_name2);

@@ -216,8 +216,9 @@ def get_cluster_sizes(clusters):
 
 ### main ###
 
-file_path = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/Server_results/genRLA_NC/out_FullDEDUP_ALL_SingleLinkage_NC_voterData_5M_Source_Annotated.csv_Pr1_LastNameStartInterlaced_3232_5"
-records_path = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/Server_results/genRLA_NC/out_FullDEDUP_ALL_RECID_SingleLinkage_NC_voterData_5M_Source_Annotated.csv_Pr1_LastNameStartInterlaced_3232_5"
+file_path = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/data/Parcent_100_ALL_SingleLinkage_NC_voterData_5M_Source_Annotated.csv_jero_.8"
+records_path = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/data/Parcent_100_ALL_RECID_SingleLinkage_NC_voterData_5M_Source_Annotated.csv_jero_.8"
+
 
 # file_path = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/Server_results/genRLA_NC/out_TakeHitDubSL_Unique_SingleLinkage_NC_voterData_5M_Source_Annotated.csv_Pr1_LastNameStartInterlaced_3232_5_Superblocking"
 # records_path = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/Server_results/genRLA_NC/out_TakeHitDubSL_Unique_SingleLinkage_RecInd_NC_voterData_5M_Source_Annotated.csv_Pr1_LastNameStartInterlaced_3232_5_Superblocking"

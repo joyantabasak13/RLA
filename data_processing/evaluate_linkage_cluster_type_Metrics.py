@@ -176,12 +176,11 @@ def get_cluster_sizes(clusters):
 ### main ###
 
 # file_path = "/Users/joyanta/Downloads/output_edit_ds2.1.txtOutSingle"
-file_path = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/Server_results/genRLA_NC/out_FullDEDUP_ExactClustering_RecInd_NC_voterData_5M_Source_Annotated.csv_Pr1_LastNameStartInterlaced_3232_5"
-
+file_path = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/data/q_gram_v_0.1.txtOutSingle"
 
 ### Calculate Cluster Accuracy
 
-cluster_members_vec = get_my_clusters(file_path)
+cluster_members_vec = get_rlaCL_clusters(file_path)
 ssn_tot_dict, ssn_group_dict, per_cluster_ssn_group_dict = get_ssn_info(cluster_members_vec)
 total_clusters = len(cluster_members_vec)
 types_counts = get_cluster_types(per_cluster_ssn_group_dict, ssn_tot_dict)

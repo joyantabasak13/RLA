@@ -175,12 +175,12 @@ def get_cluster_sizes(clusters):
 
 ### main ###
 
-file_path = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/Server_results/26Mar/out_complete_linkage_simulated_records_UnionFindTest_80000_records.csv_parallel_normal_blocking_fullName_1_threads"
-# file_path = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/Server_results/genRLA_NC/out_superblocking_RLA_SingleLinkage_NC_VoterData_5M.csv_pGEN_NC_lastName_6_threads"
+# file_path = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/Server_results/26Mar/out_complete_linkage_simulated_records_UnionFindTest_80000_records.csv_parallel_normal_blocking_fullName_1_threads"
+file_path = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/data/q_gram_v_0.1.txtOutSingle"
 
 ### Calculate Cluster Accuracy
 
-cluster_members_vec = get_my_clusters(file_path)
+cluster_members_vec = get_rlaCL_clusters(file_path)
 ssn_tot_dict, ssn_group_dict, per_cluster_ssn_group_dict = get_ssn_info(cluster_members_vec)
 total_clusters = len(cluster_members_vec)
 types_counts = get_cluster_types(per_cluster_ssn_group_dict, ssn_tot_dict)

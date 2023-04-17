@@ -1,6 +1,6 @@
 // Take hit Deduplication
 // interlaced size 4 rotating superblocking
-// 3 2 3 2 5 distance threshold 
+// 3 2 3 1 5 distance threshold 
 
 #include <algorithm>
 #include <chrono>
@@ -28,7 +28,7 @@ using namespace std;
 
 int threshold = 99;
 int cumulativeDistanceThreshold = 5;
-vector<int> attrDistThreshold{3,2,3,2};
+vector<int> attrDistThreshold{3,2,3,1};
 int totalRecords;
 int lenMax;
 int totalUniqueRecords;
@@ -443,7 +443,7 @@ void writeExactClusters(string& fileName) {
     out_file.open(fileName);
 	for (auto const& p : exactMatches) {
 		for (int j=0; j<p.second.size(); j++) {
-			out_file<< vec2D[p.second[j]][0] << ",";
+			out_file<< p.second[j] << ",";
 		}
 		out_file<< "\n";
 	}
@@ -901,13 +901,13 @@ int main(int argc, char** argv) {
 	getCombinedData();
 
 	// Outputs
-    string fileNameSuffix = "_Pr1_LastNameStartInterlaced_3232_5";
-	string out_name1 = out_file_path + "out_FullDEDUP_CompleteLinkage_"+ fileName + fileNameSuffix;
-	string out_name2 = out_file_path + "out_FullDEDUP_Unique_SingleLinkage_"+ fileName + fileNameSuffix;
-	string out_name3 = out_file_path + "out_FullDEDUP_Unique_SingleLinkage_RecInd_"+ fileName + fileNameSuffix;
-	string out_name4 = out_file_path + "out_FullDEDUP_ExactClustering_"+ fileName + fileNameSuffix;
-	string out_name5 = out_file_path + "out_FullDEDUP_ALL_SingleLinkage_"+ fileName + fileNameSuffix;
-	string out_name6 = out_file_path + "out_FullDEDUP_ALL_RECID_SingleLinkage_"+ fileName + fileNameSuffix;
+    string fileNameSuffix = "_3231_5";
+	string out_name1 = out_file_path + "Parcent_1_CompleteLinkage_"+ fileName + fileNameSuffix;
+	string out_name2 = out_file_path + "Parcent_1_Unique_SingleLinkage_"+ fileName + fileNameSuffix;
+	string out_name3 = out_file_path + "Parcent_1_Unique_SingleLinkage_RecInd_"+ fileName + fileNameSuffix;
+	string out_name4 = out_file_path + "Parcent_1_ExactClustering_"+ fileName + fileNameSuffix;
+	string out_name5 = out_file_path + "Parcent_1_ALL_SingleLinkage_"+ fileName + fileNameSuffix;
+	string out_name6 = out_file_path + "Parcent_1_ALL_RECID_SingleLinkage_"+ fileName + fileNameSuffix;
 
 	string stat_file_name = "stat_"+ fileName + fileNameSuffix;
 

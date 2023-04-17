@@ -26,7 +26,7 @@ using namespace std;
 
 int threshold = 99;
 int blockingDistanceThreshold = 1;
-int nonBlockingDistanceThreshold = 2;
+int nonBlockingDistanceThreshold = 1;
 int totalRecords;
 int lenMax;
 int totalUniqueRecords;
@@ -55,6 +55,8 @@ vector<pair<int,int> > blockingIDList;
 vector<pair<int, int>> boundaryArr;
 vector<vector<pair<int, int>>> assignedBlocklists;
 vector<vector<int> > edgeArr;
+
+int matArr[50][50] = {0};
 
 class UnionFind {
   public:
@@ -127,14 +129,10 @@ vector<UnionFind> uf;
 int calculateBasicED2(string& str1, string& str2, int threshRem)
 {
 	int row, col, i, j;
-	vector<vector<int> > matArr;
 
 	row		= str1.length() + 1;
 	col 	= str2.length() + 1;
 
-	matArr.resize(row);
-	for(i = 0; i < row; ++i)
-		matArr[i].resize(col, 0);
 
 	for(i = 0; i < row; i++)
 	{
@@ -184,7 +182,6 @@ int calculateBasicED(string& str1, string& str2, int threshRem)
 		string s1, s2;
 		int row, col, diagonal;
 		int i, j;
-		vector<vector<int> > matArr;
 
 		if (str1.length() > str2.length())
 		{
@@ -200,10 +197,6 @@ int calculateBasicED(string& str1, string& str2, int threshRem)
 		row	 		= s1.length() + 1;
 		col 		= 2 * dist + 1;
 		diagonal 	= dist + s2.length() - s1.length();
-
-		matArr.resize(row);
-		for(i = 0; i < row; ++i)
-			matArr[i].resize(col, 0);
 
 		//if(procID == 1 && checkTemp == 3164)
 			//	cout << str1 << " -- " << str2 << " rt " << dist << endl;
@@ -811,8 +804,8 @@ void *threadDriver(void* ptr) {
 }
 
 int main(int argc, char** argv) {
-    string filePath = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/";
-    // string filePath = "/home/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/";
+    // string filePath = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/";
+    string filePath = "/home/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/";
     string fileName = argv[1];
     filePath = filePath + argv[1];
     getFormattedDataFromCSV(filePath);
@@ -913,8 +906,8 @@ int main(int argc, char** argv) {
 	cout<< "Get Total Wall Time "<< (double)(allDone_pX_Wt - currWallT_p0) << endl;
 
 	// Outputs
-    string out_file_path = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/data/";
-    // string out_file_path = "/home/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/data/";
+    // string out_file_path = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/data/";
+    string out_file_path = "/home/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/data/";
 	string out_name1 = out_file_path + "out_single_linkage_"+ fileName + "_psb_fullName_unionFind_1_threads";
 	string out_name2 = out_file_path + "out_complete_linkage_"+ fileName + "_psb_fullName_unionFind_1_threads";
 	string stat_file_name = "stat_"+ fileName + "_psb_fullName_unionFind_1_threads";
