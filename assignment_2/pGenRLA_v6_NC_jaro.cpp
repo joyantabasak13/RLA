@@ -26,8 +26,8 @@
 
 using namespace std;
 
-double avgDistanceThreshold = 0.8;
-vector<double> attrDistThreshold{0.8,0.8,0.8,0.8};
+double avgDistanceThreshold = 0.85;
+vector<double> attrDistThreshold{0.85,0.85,0.85,0.85};
 int totalRecords;
 int lenMax;
 int totalUniqueRecords;
@@ -38,7 +38,7 @@ int base = 36;
 int kmer = 3;
 int blockIDRange = pow(base,kmer+1);
 int extraEdges = 0;
-int numThreads = 6;
+int numThreads = 12;
 int numSources = 5;
 int prelen = 1;
 long long int totalCompRequired;
@@ -160,74 +160,512 @@ class UnionFind {
 
 vector<UnionFind> uf;
 
+void sortCharIDArray(pair<int, int> charIDList[], int length)
+{
+	int alphabets = 36;
+	int numRecords = length;
+	pair<int, int> tempArr[numRecords];
+	int countArr[alphabets];
+	memset(countArr, 0, alphabets*sizeof(int));
+
+	for (int j = 0; j < numRecords; ++j)
+	{
+		countArr[charIDList[j].first]++;
+	}
+	// Do prefix sum
+	for (int k = 1; k < alphabets; ++k)
+		countArr[k] += countArr[k - 1];
+
+	for (int j = numRecords - 1; j >= 0; --j)
+		tempArr[--countArr[charIDList[j].first]] = charIDList[j];
+
+	for (int j = 0; j < numRecords; ++j)
+		charIDList[j] = tempArr[j];
+}
+
 double jaro_distance(string& s1, string& s2)
 {
-	// Length of two strings
+    // If the strings are equal
+    if (s1 == s2)
+        return 1.0;
+ 
+    // Length of two strings
+    int len1 = s1.length(),
+        len2 = s2.length();
+ 
+    // Maximum distance upto which matching
+    // is allowed
+    int max_dist = floor(max(len1, len2) / 2) - 1;
+ 
+    // Count of matches
+    int match = 0;
+ 
+    // Hash for matches
+	std::vector<int> hash_s1(len1,0);
+	std::vector<int> hash_s2(len2,0);
+ 
+    // Traverse through the first string
+    for (int i = 0; i < len1; i++) {
+ 
+        // Check if there is any matches
+        for (int j = max(0, i - max_dist);
+             j < min(len2, i + max_dist + 1); j++)
+ 
+            // If there is a match
+            if (s1[i] == s2[j] && hash_s2[j] == 0) {
+                hash_s1[i] = 1;
+                hash_s2[j] = 1;
+                match++;
+                break;
+            }
+    }
+ 
+    // If there is no match
+    if (match == 0)
+        return 0.0;
+ 
+    // Number of transpositions
+    double t = 0;
+ 
+    int point = 0;
+ 
+    // Count number of occurrences
+    // where two characters match but
+    // there is a third matched character
+    // in between the indices
+    for (int i = 0; i < len1; i++)
+        if (hash_s1[i]) {
+ 
+            // Find the next matched character
+            // in second string
+            while (hash_s2[point] == 0)
+                point++;
+ 
+            if (s1[i] != s2[point++])
+                t++;
+        }
+ 
+    t /= 2;
+ 
+    // Return the Jaro Similarity
+    return (((double)match) / ((double)len1)
+            + ((double)match) / ((double)len2)
+            + ((double)match - t) / ((double)match))
+           / 3.0;
+}
+
+double jaro_distance_linear1(string &s1, string &s2)
+{
 	int len1 = s1.length();
 	int len2 = s2.length();
 
 	if (len1 == 0 || len2 == 0)
 		return 0.0;
 
-	// Maximum distance upto which matching is allowed
-	int max_dist = floor(max(len1, len2) / 2) - 1;
+	int range = floor(max(len1, len2) / 2) - 1;
 
-	// Count of matches
 	int match = 0;
+	int misMatch = 0;
+	pair<int, int> s1charIndPair[len1];
+	pair<int, int> s2charIndPair[len2];
+	int hash_s1[len1];
+	int hash_s2[len2];
+	memset(hash_s1, 0, len1*sizeof(int));
+	memset(hash_s2, 0, len2*sizeof(int));
 
-	// Hash for matches
-	std::vector<int> hash_s1(s1.length(),0);
-	std::vector<int> hash_s2(s2.length(),0);
+	pair<int, int> p;
 
-	// Traverse through the first string
-	for (int i = 0; i < len1; i++) {
-
-		// Check if there is any matches
-		for (int j = max(0, i - max_dist);
-			j < min(len2, i + max_dist + 1); j++)
-			// If there is a match
-			if (s1[i] == s2[j] && hash_s2[j] == 0) {
-				hash_s1[i] = 1;
-				hash_s2[j] = 1;
-				match++;
-				break;
-			}
+	for (int i = 0; i < len1; i++)
+	{
+		if ((s1[i] >= 97) && (s1[i] <= 122))
+		{
+			p.first = s1[i] - 97;
+		}
+		else if ((s1[i] >= 48) && (s1[i] <= 57))
+		{
+			p.first = s1[i] - 48 + 26;
+		}
+		p.second = i;
+		s1charIndPair[i] = p;
 	}
 
-	// If there is no match
+	for (int i = 0; i < len2; i++)
+	{
+		if ((s2[i] >= 97) && (s2[i] <= 122))
+		{
+			p.first = s2[i] - 97;
+		}
+		else if ((s2[i] >= 48) && (s2[i] <= 57))
+		{
+			p.first = s2[i] - 48 + 26;
+		}
+		p.second = i;
+		s2charIndPair[i] = p;
+		// cout<< p.first << endl;
+	}
+	sortCharIDArray(s1charIndPair, len1);
+	sortCharIDArray(s2charIndPair, len2);
+	int j = 0;
+	int i = 0;
+	while ((i < len1) && (j < len2))
+	{
+		if (s1charIndPair[i].first == s2charIndPair[j].first)
+		{
+			if (abs(s1charIndPair[i].second - s2charIndPair[j].second) <= range)
+			{
+				match++;
+				hash_s1[s1charIndPair[i].second] = 1;
+				hash_s2[s2charIndPair[j].second] = 1;
+				j++;
+				i++;
+			}
+			else
+			{
+				misMatch++;
+				if (s1charIndPair[i].second < s2charIndPair[j].second)
+				{
+					i++;
+				}
+				else
+				{
+					j++;
+				}
+			}
+		}
+		else
+		{
+			misMatch++;
+			if (s1charIndPair[i].first < s2charIndPair[j].first)
+			{
+				i++;
+			}
+			else
+			{
+				j++;
+			}
+		}
+	}
+	misMatch += len1 + len2 - i - j;
 	if (match == 0)
 		return 0.0;
 
-	// Number of transpositions
-	double t = 0;
-
+	int t = 0;
 	int point = 0;
-
-	// Count number of occurrences
-	// where two characters match but
-	// there is a third matched character
-	// in between the indices
+	int k = 0;
 	for (int i = 0; i < len1; i++)
-		if (hash_s1[i]) {
-
-			// Find the next matched character
-			// in second string
-			while (hash_s2[point] == 0)
-				point++;
-
-			if (s1[i] != s2[point++])
+	{
+		if (hash_s1[i] == 1)
+		{
+			int j;
+			for (j = k; j < len2; j++)
+			{
+				if (hash_s2[j] == 1)
+				{
+					k = j + 1;
+					break;
+				}
+			}
+			if (s1[i] != s2[j])
+			{
 				t++;
+			}
 		}
+	}
+	t = t / 2;
 
-	t /= 2;
+	// cout << "Range: " << range << endl;
+	// cout << "Match: " << match << endl;
+	// cout << "Mismatch: " << misMatch << endl;
+	// cout << "Total Length: " << len1 + len2 << endl;
+	// cout << "Transposition: " << t << endl;
 
-	// Return the Jaro Similarity
-	return (((double)match) / ((double)len1)
-			+ ((double)match) / ((double)len2)
-			+ ((double)match - t) / ((double)match))
-		/ 3.0;
+	return (((double)match) / ((double)len1) + ((double)match) / ((double)len2) + ((double)match - t) / ((double)match)) / 3.0;
 }
 
+double jaro_distance_thresholded(string &s1, string &s2, double threshold)
+{
+	int len1 = s1.length();
+	int len2 = s2.length();
+	double len_mul = (double)(len1 * len2);
+	int misMatchAllowed = floor((len_mul * (4.0 - 6.0 * threshold) + (double)pow(len1, 2) + (double)pow(len2, 2)) / (len1 + len2));
+	if (len1 == 0 || len2 == 0)
+		return 0.0;
+
+	int range_ind = floor(max(len1, len2) / 2) - 1;
+
+	int match = 0;
+	int misMatch = 0;
+	vector<pair<int, int>> s1charIndPair;
+	vector<pair<int, int>> s2charIndPair;
+	s1charIndPair.resize(len1);
+	s2charIndPair.resize(len2);
+	int hash_s1[len1];
+	int hash_s2[len2];
+	memset(hash_s1, 0, len1 * sizeof(int));
+	memset(hash_s2, 0, len2 * sizeof(int));
+	pair<int, int> p;
+
+	for (int i = 0; i < len1; i++)
+	{
+		if ((s1[i] >= 97) && (s1[i] <= 122))
+		{
+			p.first = s1[i] - 97;
+		}
+		else if ((s1[i] >= 48) && (s1[i] <= 57))
+		{
+			p.first = s1[i] - 48 + 26;
+		}
+		p.second = i;
+		s1charIndPair[i] = p;
+	}
+
+	for (int i = 0; i < len2; i++)
+	{
+		if ((s2[i] >= 97) && (s2[i] <= 122))
+		{
+			p.first = s2[i] - 97;
+		}
+		else if ((s2[i] >= 48) && (s2[i] <= 57))
+		{
+			p.first = s2[i] - 48 + 26;
+		}
+		p.second = i;
+		s2charIndPair[i] = p;
+		// cout<< p.first << endl;
+	}
+
+	stable_sort(s1charIndPair.begin(), s1charIndPair.end(), [](const auto& a, const auto& b) {return a.first < b.first; });
+	stable_sort(s2charIndPair.begin(), s2charIndPair.end(), [](const auto& a, const auto& b) {return a.first < b.first; });
+
+	int j = 0;
+	int i = 0;
+	while ((i < len1) && (j < len2))
+	{
+		if (s1charIndPair[i].first == s2charIndPair[j].first)
+		{
+			if (abs(s1charIndPair[i].second - s2charIndPair[j].second) <= range_ind)
+			{
+				match++;
+				hash_s1[s1charIndPair[i].second] = 1;
+				hash_s2[s2charIndPair[j].second] = 1;
+				j++;
+				i++;
+			}
+			else
+			{
+				misMatch++;
+				if (s1charIndPair[i].second < s2charIndPair[j].second)
+				{
+					i++;
+				}
+				else
+				{
+					j++;
+				}
+			}
+		}
+		else
+		{
+			misMatch++;
+			if (s1charIndPair[i].first < s2charIndPair[j].first)
+			{
+				i++;
+			}
+			else
+			{
+				j++;
+			}
+		}
+		if (misMatch > misMatchAllowed)
+			return 0.0;
+	}
+
+	misMatch += len1 + len2 - i - j;
+	if (misMatch > misMatchAllowed)
+		return 0.0;
+
+	int t = 0;
+	int point = 0;
+	int k = 0;
+	for (int i = 0; i < len1; i++)
+	{
+		if (hash_s1[i] == 1)
+		{
+			int j;
+			for (j = k; j < len2; j++)
+			{
+				if (hash_s2[j] == 1)
+				{
+					k = j + 1;
+					break;
+				}
+			}
+			if (s1[i] != s2[j])
+			{
+				t++;
+			}
+		}
+	}
+	t = t / 2;
+
+	// cout<< "Thresholded Jaro" << endl;
+	// cout<< "Range: " << range_ind << endl;
+	// cout<< "Match: " << match << endl;
+	// cout<< "Mismatch: " << misMatch << endl;
+	// cout<< "Total Length: " << len1 + len2 << endl;
+	// cout<< "Transposition: " << t << endl;
+
+	return (((double)match) / ((double)len1) + ((double)match) / ((double)len2) + ((double)match - t) / ((double)match)) / 3.0;
+}
+
+double jaro_distance_linear2(string &s1, string &s2, double th)
+{
+	int len1 = s1.length();
+	int len2 = s2.length();
+
+	if (len1 == 0 || len2 == 0)
+		return 0.0;
+
+	int alphabets = 36;
+	int range = floor(max(len1, len2) / 2) - 1;
+	double len_mul = (double)(len1 * len2);
+	int misMatchAllowed = ceil((len_mul * (4.0 - 6.0 * th) + (double)pow(len1, 2) + (double)pow(len2, 2)) / (len1 + len2));
+	
+	int match = 0;
+	int misMatch = 0;
+	pair<int, int> s1charIndPair[len1];
+	pair<int, int> s2charIndPair[len2];
+	int hash_s1[len1];
+	int hash_s2[len2];
+	vector<int> c1[alphabets];
+	vector<int> c2[alphabets];
+	memset(hash_s1, 0, len1 * sizeof(int));
+	memset(hash_s2, 0, len2 * sizeof(int));
+
+	int cIndex;
+	int charInStrIndex;
+	for (int i = 0; i < len1; i++)
+	{
+		if ((s1[i] >= 97) && (s1[i] <= 122))
+		{
+			cIndex = s1[i] - 97;
+		}
+		else if ((s1[i] >= 48) && (s1[i] <= 57))
+		{
+			cIndex = s1[i] - 48 + 26;
+		}
+		charInStrIndex = i;
+		c1[cIndex].push_back(charInStrIndex);
+	}
+
+	for (int i = 0; i < len2; i++)
+	{
+		if ((s2[i] >= 97) && (s2[i] <= 122))
+		{
+			cIndex = s2[i] - 97;
+		}
+		else if ((s2[i] >= 48) && (s2[i] <= 57))
+		{
+			cIndex = s2[i] - 48 + 26;
+		}
+		charInStrIndex = i;
+		c2[cIndex].push_back(charInStrIndex);
+	}
+
+	int j = 0;
+	int i = 0;
+	for(int k=0;k<alphabets;k++){
+		while((i<c1[k].size()) && (j<c2[k].size())){
+			if(abs(c1[k][i]-c2[k][j]) <= range) {
+				match++;
+				hash_s1[c1[k][i]] = 1;
+				hash_s2[c2[k][j]] = 1;
+				i++;
+				j++;
+			} else {
+				misMatch++;
+				if(c1[k][i] < c2[k][j]){
+					i++;
+				} else {
+					j++;
+				}
+			}
+		}
+		misMatch += c1[k].size() + c2[k].size() - i -j;
+
+		if(misMatch>misMatchAllowed) return 0.0;
+
+		i=0;
+		j=0;
+	}
+
+	int t = 0;
+	int k = 0;
+	for (int i = 0; i < len1; i++)
+	{
+		if (hash_s1[i] == 1)
+		{
+			int j;
+			for (j = k; j < len2; j++)
+			{
+				if (hash_s2[j] == 1)
+				{
+					k = j + 1;
+					break;
+				}
+			}
+			if (s1[i] != s2[j])
+			{
+				t++;
+			}
+		}
+	}
+	t = t / 2;
+
+	// cout<< "Non thresholded linear jaro" << endl;
+	// cout << "Range: " << range << endl;
+	// cout << "Match: " << match << endl;
+	// cout << "Mismatch: " << misMatch << endl;
+	// cout << "Total Length: " << len1 + len2 << endl;
+	// cout << "Transposition: " << t << endl;
+
+	return (((double)match) / ((double)len1) + ((double)match) / ((double)len2) + ((double)match - t) / ((double)match)) / 3.0;
+}
+
+double calculateJaroWinklerDist(string& str1,string& str2) {
+	int min_string_len = (str1.size() - str2.size());
+
+	if (min_string_len < 0){
+		min_string_len = -min_string_len;
+	}
+	if (min_string_len > 1) {
+		return 0.20;
+	}
+
+	double jaro_dist = jaro_distance(str1, str2);
+
+	if (jaro_dist > 0.0) {
+		int prefix = 0;
+
+		for (int i = 0; i < min(str1.length(), str2.length()); i++) {
+			// If the characters match
+			if (str1[i] == str2[i])
+				prefix++;
+
+			// Else break
+			else
+				break;
+		}
+
+		// Maximum of 4 characters are allowed in prefix
+		prefix = min(4, prefix);
+
+		// Calculate jaro winkler Similarity
+		jaro_dist += 0.1 * prefix * (1 - jaro_dist);
+	}
+	return jaro_dist;
+
+}
 
 void radixSort(vector<pair<int, string> > &strDataArr){
 	int numRecords = strDataArr.size();
@@ -256,9 +694,21 @@ bool isLinkageOk(vector<string> &a, vector<string> &b)
 	// This condition is for the dataset under investigation only
 	double cumulativeDist = 0.0;
 	for (int i = 1; i < attributes-1; i++)
-	{	
-		double dist = jaro_distance(a[i], b[i]);
-		if (dist < attrDistThreshold[i-1]){
+	{
+		double dist = jaro_distance_linear2(a[i], b[i], attrDistThreshold[i-1]);
+		// double dist = jaro_distance_thresholded(a[i], b[i], attrDistThreshold[i-1]);
+		// double dist2 = jaro_distance_linear1(a[i], b[i]);
+		// double dist = jaro_distance(a[i], b[i]);
+		// if ((dist != dist2) && (dist!=0.0)) {
+		// 	cout<< a[i] << " " << b[i] << endl;
+		// 	cout<< dist << " " << dist2 << endl;
+		// }
+	
+		// double dist = jaro_distance_thresholded(a[i], b[i], attrDistThreshold[i-1]);
+		// double dist = calculateJaroWinklerDist(a[i], b[i]);
+		// if (dist < attrDistThreshold[i-1]){
+
+		if(dist == 0.0) {
 			return false;
 		} else {
 			cumulativeDist += dist;
@@ -783,11 +1233,11 @@ int main(int argc, char** argv) {
 	// IO PATHS
 	// Input
 
-    // string filePath = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/";
-    // string out_file_path = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/data/";
+    string filePath = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/";
+    string out_file_path = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/data/";
 
-	string filePath = "/home/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/";
-    string out_file_path = "/home/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/data/";
+	// string filePath = "/home/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/";
+    // string out_file_path = "/home/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/data/";
 
 	string fileName = argv[1];
     filePath = filePath + argv[1];
@@ -796,13 +1246,13 @@ int main(int argc, char** argv) {
 	getCombinedData();
 
 	// Outputs
-    string fileNameSuffix = "_jero_.8";
-	string out_name1 = out_file_path + "Parcent_100_CompleteLinkage_"+ fileName + fileNameSuffix;
-	string out_name2 = out_file_path + "Parcent_100_Unique_SingleLinkage_"+ fileName + fileNameSuffix;
-	string out_name3 = out_file_path + "Parcent_100_Unique_SingleLinkage_RecInd_"+ fileName + fileNameSuffix;
-	string out_name4 = out_file_path + "Parcent_100_ExactClustering_"+ fileName + fileNameSuffix;
-	string out_name5 = out_file_path + "Parcent_100_ALL_SingleLinkage_"+ fileName + fileNameSuffix;
-	string out_name6 = out_file_path + "Parcent_100_ALL_RECID_SingleLinkage_"+ fileName + fileNameSuffix;
+    string fileNameSuffix = "linear_2_jaro_thresholded";
+	string out_name1 = out_file_path + "CompleteLinkage_"+ fileName + fileNameSuffix;
+	string out_name2 = out_file_path + "Unique_SingleLinkage_"+ fileName + fileNameSuffix;
+	string out_name3 = out_file_path + "Unique_SingleLinkage_RecInd_"+ fileName + fileNameSuffix;
+	string out_name4 = out_file_path + "ExactClustering_"+ fileName + fileNameSuffix;
+	string out_name5 = out_file_path + "ALL_SingleLinkage_"+ fileName + fileNameSuffix;
+	string out_name6 = out_file_path + "ALL_RECID_SingleLinkage_" + fileNameSuffix;
 
 	string stat_file_name = "stat_"+ fileName + fileNameSuffix;
 

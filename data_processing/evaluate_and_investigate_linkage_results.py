@@ -26,6 +26,29 @@ def get_rlaCL_clusters(path):
                     total_cluster_vec.append(cluster_vec)
                     cluster_vec = []
     # ruru
+    for i in total_cluster_vec:
+        print(i)
+    return total_cluster_vec
+
+
+def get_splink_clusters(path):
+    total_cluster_vec = []
+    cluster_vec = []
+    with open(path, "r", encoding="utf8") as file:
+        csv_reader = csv.reader(file, delimiter="\t")
+        for row in csv_reader:
+            # print(row)
+            if len(row[0]) < 1:
+                if len(cluster_vec) > 0:
+                    cluster_vec.sort()
+                    total_cluster_vec.append(cluster_vec)
+                    cluster_vec = []
+            elif row[0][0] == 'c':
+                cluster_vec = []
+            elif len(row[0]) > 1:
+                cur_ssn = row[0]
+                cluster_vec.append(cur_ssn)
+    # ruru
     # for i in total_cluster_vec:
     #     print(i)
     return total_cluster_vec
@@ -152,6 +175,7 @@ def print_large_clusters(ssn_groups_in_single_cluster, threshold):
                     print(records_attrs[int(y)])
 
 
+
 # Input: dictionary of vectors of numbers of same ssn records found together in clusters
 # Output: Total True Positive Links
 def get_linkage_tp(ssn_groups):
@@ -216,17 +240,20 @@ def get_cluster_sizes(clusters):
 
 ### main ###
 
-file_path = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/data/Parcent_100_ALL_SingleLinkage_NC_voterData_5M_Source_Annotated.csv_jero_.8"
-records_path = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/data/Parcent_100_ALL_RECID_SingleLinkage_NC_voterData_5M_Source_Annotated.csv_jero_.8"
+file_path = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/data_processing/v2output_edit_ds7.1.txtOutSingle"
 
+records_path = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/firstName_LastName_DS/ds7_1_1M"
 
-# file_path = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/Server_results/genRLA_NC/out_TakeHitDubSL_Unique_SingleLinkage_NC_voterData_5M_Source_Annotated.csv_Pr1_LastNameStartInterlaced_3232_5_Superblocking"
+# file_path = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/data_processing/Out_1_ds7_1M_fl.csv"
+
 # records_path = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/Server_results/genRLA_NC/out_TakeHitDubSL_Unique_SingleLinkage_RecInd_NC_voterData_5M_Source_Annotated.csv_Pr1_LastNameStartInterlaced_3232_5_Superblocking"
 
 ### Calculate Cluster Accuracy
 
 recID_indices, records_attrs = get_recID_indices(records_path)
-cluster_members_vec = get_my_clusters(file_path)
+# cluster_members_vec = get_my_clusters(file_path)
+cluster_members_vec = get_splink_clusters(file_path)
+
 ssn_tot_dict, ssn_group_dict, per_cluster_ssn_group_dict = get_ssn_info(cluster_members_vec)
 total_clusters = len(cluster_members_vec)
 types_counts = get_cluster_types(per_cluster_ssn_group_dict, ssn_tot_dict)
@@ -237,6 +264,7 @@ for i in range(len(types_counts)):
 
 total_records = get_total_records(ssn_tot_dict)
 print(f"Total records: {total_records} of {len(ssn_tot_dict)} persons")
+
 linkage_TP = get_linkage_tp(ssn_group_dict)
 print(f"True Positive Links: {linkage_TP}")
 
@@ -266,10 +294,10 @@ cluster_sizes_dict = get_cluster_sizes(per_cluster_ssn_group_dict)
 total_cluster_size = 0
 for x in cluster_sizes_dict:
     total_cluster_size = total_cluster_size + x
-    if x > 1000:
+    if x > 5:
         print(f"{x} : {cluster_sizes_dict[x]}")
 print(f"Average Cluster Size: {total_cluster_size/len(cluster_sizes_dict)}")
-# print_large_clusters(per_cluster_ssn_group_dict, 10)
+print_large_clusters(per_cluster_ssn_group_dict, 6)
 
 
 # 5212361,mary,young,sprucepine,28777

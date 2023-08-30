@@ -39,7 +39,7 @@ int lenMax;
 int attributes;
 int numSources = 5;
 int knn = 20;
-int numRepeat = 20;
+int numRepeat = 1;
 
 vector<vector<string> > vec2D;
 vector<vector<int> > cluster2D;
@@ -49,7 +49,7 @@ vector<vector<short>> distMat;
 map<int, vector<pair<int,int>>> knnMap;
 vector<map<int, vector<pair<int,int>>>> knnMaps;
 vector<priority_queue<pair<double, pair<int,int> > > > pq;
-
+int matArr[50][50] = {0};
 
 
 int getDistance(vector<string>& vec1, vector<string>& vec2);
@@ -274,21 +274,15 @@ class Cluster {
 map<int, Cluster> clusterIdToCluster;
 
 // helps edit distance calculation in calculateBasicED()
-int calculateBasicED2(string& str1, string& str2, int threshRem)
+int calculateBasicED2(string &str1, string &str2, int threshRem)
 {
 	int row, col, i, j;
-	vector<vector<int> > matArr;
+	row = str1.length() + 1;
+	col = str2.length() + 1;
 
-	row		= str1.length() + 1;
-	col 	= str2.length() + 1;
-
-	matArr.resize(row);
-	for(i = 0; i < row; ++i)
-		matArr[i].resize(col, 0);
-
-	for(i = 0; i < row; i++)
+	for (i = 0; i < row; i++)
 	{
-		for(j = 0; j < col; j++)
+		for (j = 0; j < col; j++)
 		{
 			if (i == 0)
 				matArr[i][j] = j;
@@ -296,45 +290,46 @@ int calculateBasicED2(string& str1, string& str2, int threshRem)
 				matArr[i][j] = i;
 			else
 			{
-				if((int)str1[i-1] == (int)str2[j-1])
-					matArr[i][j]	= min(min(matArr[i - 1][j - 1], matArr[i - 1][j] + 1), matArr[i][j - 1] + 1);
+				if ((int)str1[i - 1] == (int)str2[j - 1])
+					matArr[i][j] = min(min(matArr[i - 1][j - 1], matArr[i - 1][j] + 1), matArr[i][j - 1] + 1);
 				else
-					matArr[i][j] 	= min(min(matArr[i - 1][j - 1] + 1, matArr[i - 1][j] + 1), matArr[i][j - 1] + 1);
+					matArr[i][j] = min(min(matArr[i - 1][j - 1] + 1, matArr[i - 1][j] + 1), matArr[i][j - 1] + 1);
+					if(i>1 && j>1) {
+						if((str1[i-1]==str2[j-2]) && (str1[i-2] == str2[j-1])) {
+							matArr[i][j] = min(matArr[i][j], matArr[i-2][j-2]+1);
+						}
+					}
 			}
 
-			if((row - col) == (i - j) && (matArr[i][j] > threshRem))
+			if ((row - col) == (i - j) && (matArr[i][j] > threshRem))
 			{
 				return threshold + 1;
 			}
 		}
 	}
-
-	return (matArr[row-1][col-1]);
+	
+	return (matArr[row - 1][col - 1]);
 }
 
 // calculates edit distance between two string
 // takes two strings and a threshold value as input
 // returns global variable threshold + 1 if distance exceeds theshold param
 // returns edit distance
-// core mechanism is a DP algo 
-int calculateBasicED(string& str1, string& str2, int threshRem)
+// core mechanism is a DP algo
+int calculateBasicED(string &str1, string &str2, int threshRem)
 {
-	int dist	= threshRem;
+	int dist = threshRem;
 
-	if(abs((int)(str1.length() - str2.length())) > dist)
+	if (abs((int)(str1.length() - str2.length())) > dist)
 		return threshold + 1;
-	else if(str1.compare(str2) == 0)
-		return 0;
-	else if(dist == 0)
-		return threshold + 1;
-	else if((2 * dist + 1) >= max(str1.length(), str2.length()))
+	else if ((2 * dist + 1) >= max(str1.length(), str2.length()))
 		return calculateBasicED2(str1, str2, dist);
 	else
 	{
+		
 		string s1, s2;
 		int row, col, diagonal;
 		int i, j;
-		vector<vector<int> > matArr;
 
 		if (str1.length() > str2.length())
 		{
@@ -347,103 +342,93 @@ int calculateBasicED(string& str1, string& str2, int threshRem)
 			s2 = str2;
 		}
 
-		row	 		= s1.length() + 1;
-		col 		= 2 * dist + 1;
-		diagonal 	= dist + s2.length() - s1.length();
+		row = s1.length() + 1;
+		col = 2 * dist + 1;
+		diagonal = dist + s2.length() - s1.length();
 
-		matArr.resize(row);
-		for(i = 0; i < row; ++i)
-			matArr[i].resize(col, 0);
-
-		//if(procID == 1 && checkTemp == 3164)
-			//	cout << str1 << " -- " << str2 << " rt " << dist << endl;
-
-		for(i = 0; i < dist + 1; i++)
+		for (i = 0; i < dist + 1; i++)
 		{
-			for(j = dist - i; j < col; j++)
+			for (j = dist - i; j < col; j++)
 			{
 				if (i == 0)
-					matArr[i][j]	= j - dist;
-				else if(j == (dist - i))
-					matArr[i][j] 	= matArr[i - 1][j + 1] + 1;
-				else if(j != (col - 1))
+					matArr[i][j] = j - dist;
+				else if (j == (dist - i))
+					matArr[i][j] = matArr[i - 1][j + 1] + 1;
+				else if (j != (col - 1))
 				{
-					if((int)s1[i - 1] == (int)s2[j - (dist - i) - 1])
-						matArr[i][j]	= min(min(matArr[i - 1][j], matArr[i - 1][j + 1] + 1), matArr[i][j - 1] + 1);
-					else
-						matArr[i][j] 	= min(min(matArr[i - 1][j] + 1, matArr[i - 1][j + 1] + 1), matArr[i][j - 1] + 1);
+					if ((int)s1[i - 1] == (int)s2[j - (dist - i) - 1])
+						matArr[i][j] = min(min(matArr[i - 1][j], matArr[i - 1][j + 1] + 1), matArr[i][j - 1] + 1);
+					else {
+						matArr[i][j] = min(min(matArr[i - 1][j] + 1, matArr[i - 1][j + 1] + 1), matArr[i][j - 1] + 1);
+					}
+							
 				}
 				else
 				{
-					if((int)s1[i - 1] == (int)s2[j - (dist - i) - 1])
-						matArr[i][j]	= min(matArr[i - 1][j], matArr[i][j - 1] + 1);
+					if ((int)s1[i - 1] == (int)s2[j - (dist - i) - 1])
+						matArr[i][j] = min(matArr[i - 1][j], matArr[i][j - 1] + 1);
 					else
-						matArr[i][j] 	= min(matArr[i - 1][j] + 1, matArr[i][j - 1] + 1);
+						matArr[i][j] = min(matArr[i - 1][j] + 1, matArr[i][j - 1] + 1);
 				}
 
-				if((j == diagonal) && matArr[i][j] > dist)
+				if ((j == diagonal) && matArr[i][j] > dist)
 					return threshold + 1;
 			}
 		}
 
-		for(i = dist + 1; i < s2.length() - dist + 1; i++)
+		for (i = dist + 1; i < s2.length() - dist + 1; i++)
 		{
-			for(j = 0; j < col; j++)
+			for (j = 0; j < col; j++)
 			{
-				if(j == 0)
+				if (j == 0)
 				{
-					if((int)s1[i - 1] == (int)s2[j + (i - dist) - 1])
-						matArr[i][j]	= min(matArr[i - 1][j], matArr[i - 1][j + 1] + 1);
+					if ((int)s1[i - 1] == (int)s2[j + (i - dist) - 1])
+						matArr[i][j] = min(matArr[i - 1][j], matArr[i - 1][j + 1] + 1);
 					else
-						matArr[i][j] 	= min(matArr[i - 1][j] + 1, matArr[i - 1][j + 1] + 1);
+						matArr[i][j] = min(matArr[i - 1][j] + 1, matArr[i - 1][j + 1] + 1);
 				}
-				else if(j != (col - 1))
+				else if (j != (col - 1))
 				{
-					if((int)s1[i - 1] == (int)s2[j + (i - dist) - 1])
-						matArr[i][j] 	= min(min(matArr[i - 1][j], matArr[i - 1][j + 1] + 1), matArr[i][j - 1] + 1);
+					if ((int)s1[i - 1] == (int)s2[j + (i - dist) - 1])
+						matArr[i][j] = min(min(matArr[i - 1][j], matArr[i - 1][j + 1] + 1), matArr[i][j - 1] + 1);
 					else
-						matArr[i][j] 	= min(min(matArr[i - 1][j] + 1, matArr[i - 1][j + 1] + 1), matArr[i][j - 1] + 1);
+						matArr[i][j] = min(min(matArr[i - 1][j] + 1, matArr[i - 1][j + 1] + 1), matArr[i][j - 1] + 1);
 				}
 				else
 				{
-					if((int)s1[i - 1] == (int)s2[j + (i - dist) - 1])
-						matArr[i][j] 	= min(matArr[i - 1][j], matArr[i][j - 1] + 1);
+					if ((int)s1[i - 1] == (int)s2[j + (i - dist) - 1])
+						matArr[i][j] = min(matArr[i - 1][j], matArr[i][j - 1] + 1);
 					else
-						matArr[i][j] 	= min(matArr[i - 1][j] + 1, matArr[i][j - 1] + 1);
+						matArr[i][j] = min(matArr[i - 1][j] + 1, matArr[i][j - 1] + 1);
 				}
-				if((j == diagonal) && (matArr[i][j] > dist))
+				if ((j == diagonal) && (matArr[i][j] > dist))
 					return threshold + 1;
 			}
 		}
 
-		for(i = s2.length() - dist + 1; i < row; i++)
+		for (i = s2.length() - dist + 1; i < row; i++)
 		{
-			for(j = 0; j < col - i + s2.length() - dist; j++)
+			for (j = 0; j < col - i + s2.length() - dist; j++)
 			{
-				if(j == 0)
+				if (j == 0)
 				{
-					if((int)s1[i - 1] == (int)s2[j + (i - dist) - 1])
-						matArr[i][j]	= min(matArr[i - 1][j], matArr[i - 1][j + 1] + 1);
+					if ((int)s1[i - 1] == (int)s2[j + (i - dist) - 1])
+						matArr[i][j] = min(matArr[i - 1][j], matArr[i - 1][j + 1] + 1);
 					else
-						matArr[i][j] 	= min(matArr[i - 1][j] + 1, matArr[i - 1][j + 1] + 1);
+						matArr[i][j] = min(matArr[i - 1][j] + 1, matArr[i - 1][j + 1] + 1);
 				}
 				else
 				{
-					if((int)s1[i - 1] == (int)s2[j + (i - dist) - 1])
-						matArr[i][j] 	= min(min(matArr[i - 1][j], matArr[i - 1][j + 1] + 1), matArr[i][j - 1] + 1);
+					if ((int)s1[i - 1] == (int)s2[j + (i - dist) - 1])
+						matArr[i][j] = min(min(matArr[i - 1][j], matArr[i - 1][j + 1] + 1), matArr[i][j - 1] + 1);
 					else
-						matArr[i][j] 	= min(min(matArr[i - 1][j] + 1, matArr[i - 1][j + 1] + 1), matArr[i][j - 1] + 1);
+						matArr[i][j] = min(min(matArr[i - 1][j] + 1, matArr[i - 1][j + 1] + 1), matArr[i][j - 1] + 1);
 				}
-				if((j == diagonal) && (matArr[i][j] > dist))
+				if ((j == diagonal) && (matArr[i][j] > dist))
 					return threshold + 1;
 			}
 		}
-
-		//if(procID == 1 && checkTemp == 3164)
-			//cout << str1 << " -- " << str2 << " hukjhk " << matArr[row - 1][diagonal] << endl;
-
 		return matArr[row - 1][diagonal];
-
 	}
 }
 
@@ -1010,7 +995,7 @@ int main(int argc, char** argv) {
 	filePath = filePath + argv[1];
 	string singleLinkageFileName = argv[2];
 	singleLinkageFilePath = singleLinkageFilePath + argv[2];
-	string completeLinkageClusterFile = "kNN_NewImp_" + singleLinkageFileName;
+	string completeLinkageClusterFile = "Lev_" + singleLinkageFileName;
 	completeLinkageFilePath = completeLinkageFilePath + completeLinkageClusterFile;
 
 

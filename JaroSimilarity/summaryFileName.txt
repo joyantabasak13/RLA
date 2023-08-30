@@ -1,0 +1,3 @@
+randomString_size10_alpha26.txt
+linear: 8e-06
+Quad: 0

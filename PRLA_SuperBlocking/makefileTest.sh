@@ -1,0 +1,1 @@
+g++ -std=c++17 -O3  -o helloWorld clusterTest.cpp 

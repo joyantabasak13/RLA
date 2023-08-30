@@ -33,8 +33,8 @@ using namespace std;
 
 int threshold = 0;
 int totalRecords;
-double avgDistanceThreshold = 0.8;
-vector<double> attrDistThreshold{0.8,0.8,0.8,0.8};
+double avgDistanceThreshold = 0.85;
+vector<double> attrDistThreshold{0.75,0.75,0.8,0.85};
 int lenMax;
 int attributes;
 int numSources = 5;
@@ -46,7 +46,7 @@ map<int, int> vecRecToClusterRec;
 map<int, int> clusterRecToVecRec;
 vector<vector<short>> distMat;
 map<int, vector<pair<int,int>>> knnMap;
-vector<priority_queue<pair<double, pair<int,int> > > > pq;
+vector<priority_queue<pair<int, pair<int,int> > > > pq;
 
 
 
@@ -155,7 +155,7 @@ class CompleteCluster {
 			bool isCompatible = true;
 			for (auto const& p : recordToSource){
 				int dist = getDistance(vec2D[recID], vec2D[p.first]);
-				if (dist<(avgDistanceThreshold*1000)) {
+				if (dist <= threshold) {
 					return false;
 				}
 			}
@@ -211,8 +211,7 @@ class CompleteCluster {
 };
 
 vector<CompleteCluster> completeClusters;
-vector<CompleteCluster> minCompleteClusters;
-vector<CompleteCluster> maxCompleteClusters;
+
 
 class Cluster {
 	public:
@@ -241,30 +240,27 @@ class Cluster {
 			return false;
 		}
 
-		double getDistance(const Cluster& cluster){
+		int getDistance(const Cluster& cluster){
 			if(!isCompatible(cluster.sources)) {
-				return ((double)threshold);
+				return threshold;
 			}
-			// double totalDist = 0.0;
-			//double minDist = ((double)threshold);
-			double maxDist = 1000.0;
+
+			int minDist = 100;
 			for(auto recID1 : cluster.recIDs) {
 				for(auto recID2 : this->recIDs) {
-					//totalDist += ((double)distMat[recID1][recID2]);
-					double dist = ((double)distMat[recID1][recID2]);
-					if (dist < avgDistanceThreshold*1000) {
-						return ((double)threshold);
-					} else if (maxDist > dist) {
-						maxDist = dist;
+					int dist = distMat[recID1][recID2];
+					if (dist <= threshold) {
+						return threshold;
+					} else if (minDist > dist) {
+						minDist = dist;
 					}
-					// if(totalDist>threshold) {
-					// 	return ((double)threshold);
-					// }
 				}
 			}
-			// double avgDist = (double)((double)totalDist)/((double)(cluster.recIDs.size()*this->recIDs.size()));
-			// return avgDist;
-			return maxDist;
+			if (minDist<avgDistanceThreshold) {
+				return threshold;
+			} else {
+				return minDist;
+			}
 		}
 };
 
@@ -306,7 +302,7 @@ int jaro_distance(string& s1, string& s2)
 
 	// If there is no match
 	if (match == 0)
-		return 0.0;
+		return 0;
 
 	// Number of transpositions
 	double t = 0;
@@ -337,9 +333,117 @@ int jaro_distance(string& s1, string& s2)
 			+ ((double)match - t) / ((double)match))
 		/ 3.0;
 	
-	jaroSimVal = jaroSimVal* 100.0;
+	jaroSimVal = jaroSimVal* 1000.0;
 	return (int)jaroSimVal;
 }
+
+double jaro_distance_Orig(string& s1, string& s2)
+{
+	// Length of two strings
+	int len1 = s1.length();
+	int len2 = s2.length();
+
+	if (len1 == 0 || len2 == 0)
+		return 0.0;
+
+	// Maximum distance upto which matching is allowed
+	int max_dist = floor(max(len1, len2) / 2) - 1;
+
+	// Count of matches
+	int match = 0;
+
+	// Hash for matches
+	std::vector<int> hash_s1(s1.length(),0);
+	std::vector<int> hash_s2(s2.length(),0);
+
+	// Traverse through the first string
+	for (int i = 0; i < len1; i++) {
+
+		// Check if there is any matches
+		for (int j = max(0, i - max_dist);
+			j < min(len2, i + max_dist + 1); j++)
+			// If there is a match
+			if (s1[i] == s2[j] && hash_s2[j] == 0) {
+				hash_s1[i] = 1;
+				hash_s2[j] = 1;
+				match++;
+				break;
+			}
+	}
+
+	// If there is no match
+	if (match == 0)
+		return 0;
+
+	// Number of transpositions
+	double t = 0;
+
+	int point = 0;
+
+	// Count number of occurrences
+	// where two characters match but
+	// there is a third matched character
+	// in between the indices
+	for (int i = 0; i < len1; i++)
+		if (hash_s1[i]) {
+
+			// Find the next matched character
+			// in second string
+			while (hash_s2[point] == 0)
+				point++;
+
+			if (s1[i] != s2[point++])
+				t++;
+		}
+
+	t /= 2;
+
+	// Return the Jaro Similarity
+	double jaroSimVal = (((double)match) / ((double)len1)
+			+ ((double)match) / ((double)len2)
+			+ ((double)match - t) / ((double)match))
+		/ 3.0;
+	
+
+	return jaroSimVal;
+}
+
+
+int calculateJaroWinklerDist(string& str1,string& str2) {
+	int min_string_len = (str1.size() - str2.size());
+
+	if (min_string_len < 0){
+		min_string_len = -min_string_len;
+	}
+	if (min_string_len > 1) {
+		return 0.20;
+	}
+
+	double jaro_dist = jaro_distance_Orig(str1, str2);
+
+	if (jaro_dist > 0.0) {
+		int prefix = 0;
+
+		for (int i = 0; i < min(str1.length(), str2.length()); i++) {
+			// If the characters match
+			if (str1[i] == str2[i])
+				prefix++;
+
+			// Else break
+			else
+				break;
+		}
+
+		// Maximum of 4 characters are allowed in prefix
+		prefix = min(4, prefix);
+
+		// Calculate jaro winkler Similarity
+		jaro_dist += 0.1 * prefix * (1 - jaro_dist);
+	}
+	jaro_dist = jaro_dist*100;
+	return (int) jaro_dist;
+}
+
 
 // I/O Functions
 void writeCompleteClusters(string& recID_file) {
@@ -386,7 +490,8 @@ int getDistance(vector<string>& vec1, vector<string>& vec2){
 	int dist = 0;
 	double avgDist = 0.0;
 	for(int i=1; i<attributes-1; i++){
-		dist = jaro_distance(vec1[i], vec2[i]);
+		// dist = jaro_distance(vec1[i], vec2[i]);
+		dist = calculateJaroWinklerDist(vec1[i], vec2[i]);
 		if(dist<attrDistThreshold[i-1]) {
 			return threshold;
 		}
@@ -614,20 +719,16 @@ void getDistMat(){
 		distMat[i].resize(n, threshold);
 	}
 	for (int i = 0; i < n; ++i) {
-		double minDist = (double)threshold-1.0;
-		int minIndex = -1;
 		for(int j = i+1; j<n; j++) {
 			int dist = getDistance(dataArr[i], dataArr[j]);
 			distMat[i][j] = dist; 
 			distMat[j][i] = dist;
 			// for nearest neighbours keep a pq. Later Extract the mins and choose randomly
 			if(dist > avgDistanceThreshold) { 
-				minDist = (double)dist;
-				minIndex = j;
-				pair<double, pair<int,int> > edge;
-				edge.first = minDist;
+				pair<int, pair<int,int> > edge;
+				edge.first = dist;
 				edge.second.first = i;
-				edge.second.second = minIndex;
+				edge.second.second = j;
 				pq[i].push(edge);
 				// pq[minIndex].push(edge);
 			}
@@ -635,14 +736,9 @@ void getDistMat(){
 	}
 	for(int i=0; i<n; i++) {
 		vector<pair<double, pair<int,int>>>  kMinEdges;
-		// Extract the k mins
 		while (!pq[i].empty())
 		{
 			kMinEdges.push_back(pq[i].top());
-			// surpressed k neighboughr logic
-			// if(kMinEdges.size() >= knn) {
-			// 	break;
-			// }
 			pq[i].pop();
 		}
 
@@ -680,15 +776,15 @@ void extractCompleteClusters(map<int, vector<int> >& exactMatches) {
 			}
 		}
 		// Do random selection
-		int randMinIndex = rand() % knnMap[maxKey].size();
+		int randMaxIndex = rand() % knnMap[maxKey].size();
 		pair<int,int> edge;
-		edge = knnMap[maxKey][randMinIndex];
+		edge = knnMap[maxKey][randMaxIndex];
 		int u = edge.first;
 		int v = edge.second;
-		
+
 
 		// remove edge from map
-		knnMap[maxKey][randMinIndex] = knnMap[maxKey][knnMap[maxKey].size()-1];
+		knnMap[maxKey][randMaxIndex] = knnMap[maxKey][knnMap[maxKey].size()-1];
 		knnMap[maxKey].pop_back();
 		edgeTot--;
 
@@ -716,30 +812,19 @@ void extractCompleteClusters(map<int, vector<int> >& exactMatches) {
 				} else {
 					// cout<< "Merged cluster is not Complete!" << endl;
 					// Traverse the map and find the nearest neighbour index
-					double minDist = ((double)threshold);
-					int minIndex = -1;
-					priority_queue<pair<double, pair<int,int> > > nnPQ;
-					vector<pair<double, pair<int,int> > > edgesToAdd;
+					vector<pair<int, pair<int,int> > > edgesToAdd;
 					for (const auto &p : clusterIdToCluster){
-						double dist = cluster.getDistance(p.second);
-						if (dist >= minDist)
+						int dist = cluster.getDistance(p.second);
+						if (dist > threshold)
 						{
-							minDist = (double)dist;
-							minIndex = p.first;
 							pair<double, pair<int,int> > edge;
-							edge.first = (double)minDist;
+							edge.first = dist;
 							edge.second.first = clusterID;
-							edge.second.second = minIndex;
-							nnPQ.push(edge);
+							edge.second.second = p.first;
+							edgesToAdd.push_back(edge);
 						}
 					}
-					while(!nnPQ.empty()) {
-						edgesToAdd.push_back(nnPQ.top());
-						if(edgesToAdd.size() >= knn) {
-							break;
-						}
-						nnPQ.pop();
-					}
+
 					for(auto const& edge: edgesToAdd){
 						int edgeWeight = edge.first;
 						if (edgeWeight <= 0) {
@@ -747,8 +832,8 @@ void extractCompleteClusters(map<int, vector<int> >& exactMatches) {
 						}
 						knnMap[edgeWeight].push_back(edge.second);
 						edgeTot++;
-						if (edgeWeight< minKey) {
-							minKey = edgeWeight;
+						if (edgeWeight > maxKey) {
+							maxKey = edgeWeight;
 						}
 					}
 
@@ -827,18 +912,18 @@ void getAllCompleteClusters(string& filePath) {
 int main(int argc, char** argv) {
 
 	// IO PATHS
-	// string filePath = "/home/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/";
-    // string singleLinkageFilePath = "/home/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/data/";
-	// string completeLinkageFilePath = "/home/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/data/";
+	string filePath = "/home/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/";
+    string singleLinkageFilePath = "/home/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/data/";
+	string completeLinkageFilePath = "/home/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/data/";
 
-	string filePath = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/";
-    string singleLinkageFilePath = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/data/";
-	string completeLinkageFilePath = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/data/";
+	// string filePath = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/";
+    // string singleLinkageFilePath = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/data/";
+	// string completeLinkageFilePath = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/RLA/data/";
 
 	filePath = filePath + argv[1];
 	string singleLinkageFileName = argv[2];
 	singleLinkageFilePath = singleLinkageFilePath + argv[2];
-	string completeLinkageClusterFile = "kNN_Global_Linked_NewImp" + singleLinkageFileName;
+	string completeLinkageClusterFile = "JaroLinked_" + singleLinkageFileName;
 	completeLinkageFilePath = completeLinkageFilePath + completeLinkageClusterFile;
 
 

@@ -179,6 +179,42 @@ double jaro_distance(string& s1, string& s2)
 		/ 3.0;
 }
 
+double calculateJaroWinklerDist(string& str1,string& str2) {
+	int min_string_len = (str1.size() - str2.size());
+
+	if (min_string_len < 0){
+		min_string_len = -min_string_len;
+	}
+	if (min_string_len > 1) {
+		return 0.20;
+	}
+
+	double jaro_dist = jaro_distance(str1, str2);
+
+	if (jaro_dist > 0.0) {
+		int prefix = 0;
+
+		for (int i = 0; i < min(str1.length(), str2.length()); i++) {
+			// If the characters match
+			if (str1[i] == str2[i])
+				prefix++;
+
+			// Else break
+			else
+				break;
+		}
+
+		// Maximum of 4 characters are allowed in prefix
+		prefix = min(4, prefix);
+
+		// Calculate jaro winkler Similarity
+		jaro_dist += 0.1 * prefix * (1 - jaro_dist);
+	}
+	return jaro_dist;
+
+}
+
+
 void radixSort(vector<pair<int, string> > &strDataArr){
 	int numRecords = strDataArr.size();
 	vector<pair<int, string>> tempArr(numRecords);
@@ -293,7 +329,8 @@ void getDistances() {
 				pairwiseAttrDists.resize(attributes-1, 0);
 				for (int attr = 1; attr < attributes-1; attr++)
 				{
-					double attrDist = jaro_distance(sameEntities[i][j][attr], sameEntities[i][k][attr]);
+					// double attrDist = jaro_distance(sameEntities[i][j][attr], sameEntities[i][k][attr]);
+					double attrDist = calculateJaroWinklerDist(sameEntities[i][j][attr], sameEntities[i][k][attr]);
 					pairwiseAttrDists[attr-1] = attrDist;
 				}
 				intraClusterDists.push_back(pairwiseAttrDists);
@@ -337,7 +374,7 @@ bool checkIfConnected(int clusterID, vector<double>& attrThresholds, double avgT
 	}
 }
 
-double calculateThesholdCoverage(vector<double>& attrThresholds, double avgThreshold){
+pair<double,double> calculateThesholdCoverage(vector<double>& attrThresholds, double avgThreshold){
 	int coveredClusters = 0;
 	int coveredRecords = 0;
 	for(int i=0; i<sameEntities.size(); i++) {
@@ -351,15 +388,19 @@ double calculateThesholdCoverage(vector<double>& attrThresholds, double avgThres
 	cout<< "Covered Clusters: " << coveredClusters << endl;
 	cout<< "Covered Record: " << coveredRecords << " %Total: " << ((double)coveredRecords)/((double)vec2D.size());
 	cout<< "Coverage: " << (double)(((double)coveredClusters) / ((double)sameEntities.size())) << endl;
-	return (double)(((double)coveredClusters) / ((double)sameEntities.size()));
-
+	pair<double, double> covs;
+	covs.first = ((double)coveredRecords)/((double)vec2D.size());
+	covs.second = (double)(((double)coveredClusters) / ((double)sameEntities.size()));
+	return covs;
 }
 
 int main(int argc, char** argv) {
 
 	// IO PATHS
     string filePath = "/Users/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/";
-    string fileName = argv[1];
+    // string filePath = "/home/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/";
+
+	string fileName = argv[1];
     filePath = filePath + argv[1];
 	getFormattedDataFromCSV(filePath);
 	totalRecords = vec2D.size();
@@ -384,28 +425,27 @@ int main(int argc, char** argv) {
 	clock_t currTS_p3	= clock();
 
 	//Add the theshold amd cumulative distance
-	double limit = 0.59;
-	double avgLimit = 0.59;
+	double limit = 0.74;
+	double avgLimit = 0.74;
 	vector<double> bestThresholds;
 	double bestAvgThreshold;
-	double bestCoverage = 0.0;
-	double theta = 0.02;
+	double bestCoverage = 0.995;
 
-	for (double i = 1.0; i > limit; i-=0.1){
-		for (double j = 1.0; j > limit; j-=0.1) {
-			for (double k = 1.0; k > limit; k-=0.1) {
-				for(double m = 1.0; m > limit; m-=0.1) {
-					for (double n = 1.0; n > avgLimit; n-=0.1){
+	for (double i = .90; i > limit; i-=0.05){
+		for (double j = .90; j > limit; j-=0.05) {
+			for (double k = .90; k > limit; k-=0.05) {
+				for(double m = .90; m > limit; m-=0.05) {
+					for (double n = .90; n > avgLimit; n-=0.05){
 						double avgThreshold = n;
 						vector<double> attrThreshold{i,j,k,m};
 						cout<< endl;
 						cout<< "i: " << i << " j: " << j << " k: " << k << " m: " << m << " n: " << n << endl;
 						clock_t start_t	= clock();
-						double curCov = calculateThesholdCoverage(attrThreshold, avgThreshold);
-						if(curCov > bestCoverage+theta){
-							bestCoverage = curCov;
-							bestThresholds = attrThreshold;
-							bestAvgThreshold = avgThreshold;
+						pair<double,double> curCov = calculateThesholdCoverage(attrThreshold, avgThreshold);
+						if((curCov.first > bestCoverage) && (curCov.second > bestCoverage)){
+							double singleIterTime	= (double)(clock() - start_t) / CLOCKS_PER_SEC;
+    						cout<< "time "<< singleIterTime << endl;
+							return 0;
 						}
 						double singleIterTime	= (double)(clock() - start_t) / CLOCKS_PER_SEC;
     					cout<< "time "<< singleIterTime << endl;

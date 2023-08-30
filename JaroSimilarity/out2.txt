@@ -1,0 +1,215 @@
+/home/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/randomString_mul_2_alpha_5_set_2.txt
+Largest: 10 Smallest: 10 AVG: 10
+
+Linear algo Total Time 8.63313
+QuadAlg 2 Total Time 13.0805
+/home/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/randomString_mul_4_alpha_5_set_2.txt
+Largest: 20 Smallest: 20 AVG: 20
+
+Linear algo Total Time 14.453
+QuadAlg 2 Total Time 40.2673
+/home/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/randomString_mul_8_alpha_5_set_2.txt
+Largest: 40 Smallest: 40 AVG: 40
+
+Linear algo Total Time 25.0944
+QuadAlg 2 Total Time 111.607
+/home/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/randomString_mul_2_alpha_10_set_2.txt
+Largest: 20 Smallest: 20 AVG: 20
+
+Linear algo Total Time 18.2679
+QuadAlg 2 Total Time 44.3677
+/home/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/randomString_mul_4_alpha_10_set_2.txt
+Largest: 40 Smallest: 40 AVG: 40
+
+Linear algo Total Time 29.236
+QuadAlg 2 Total Time 129.238
+/home/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/randomString_mul_8_alpha_10_set_2.txt
+Largest: 80 Smallest: 80 AVG: 80
+
+Linear algo Total Time 47.0131
+QuadAlg 2 Total Time 360.899
+/home/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/randomString_mul_2_alpha_15_set_2.txt
+Largest: 30 Smallest: 30 AVG: 30
+
+Linear algo Total Time 28.1527
+QuadAlg 2 Total Time 88.2047
+/home/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/randomString_mul_4_alpha_15_set_2.txt
+Largest: 60 Smallest: 60 AVG: 60
+
+Linear algo Total Time 43.4995
+QuadAlg 2 Total Time 250.776
+/home/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/randomString_mul_8_alpha_15_set_2.txt
+Largest: 120 Smallest: 120 AVG: 120
+
+Linear algo Total Time 71.5348
+QuadAlg 2 Total Time 708.05
+/home/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/randomString_mul_2_alpha_20_set_2.txt
+Largest: 40 Smallest: 40 AVG: 40
+
+Linear algo Total Time 38.27
+QuadAlg 2 Total Time 138.69
+/home/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/randomString_mul_4_alpha_20_set_2.txt
+Largest: 80 Smallest: 80 AVG: 80
+
+Linear algo Total Time 58.0234
+QuadAlg 2 Total Time 410.201
+/home/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/randomString_mul_8_alpha_20_set_2.txt
+Largest: 160 Smallest: 160 AVG: 160
+
+
+
+
+
+
+Linear algo Total Time 121.899
+QuadAlg 2 Total Time 1702.8
+/home/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/randomString_25_alpha_5_set_2.txt
+Largest: 25 Smallest: 25 AVG: 25
+
+Linear algo Total Time 17.2428
+QuadAlg 2 Total Time 55.0314
+/home/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/randomString_25_alpha_10_set_2.txt
+Largest: 25 Smallest: 25 AVG: 25
+
+Linear algo Total Time 21.7248
+QuadAlg 2 Total Time 62.5058
+/home/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/randomString_25_alpha_15_set_2.txt
+Largest: 25 Smallest: 25 AVG: 25
+
+Linear algo Total Time 24.5459
+QuadAlg 2 Total Time 63.5128
+/home/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/randomString_25_alpha_20_set_2.txt
+Largest: 25 Smallest: 25 AVG: 25
+
+Linear algo Total Time 25.4938
+QuadAlg 2 Total Time 62.1366
+/home/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/randomString_25_alpha_26_set_2.txt
+Largest: 25 Smallest: 25 AVG: 25
+
+Linear algo Total Time 25.1404
+QuadAlg 2 Total Time 58.9895
+/home/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/randomString_50_alpha_5_set_2.txt
+Largest: 50 Smallest: 50 AVG: 50
+
+Linear algo Total Time 29.5913
+QuadAlg 2 Total Time 152.524
+/home/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/randomString_50_alpha_10_set_2.txt
+Largest: 50 Smallest: 50 AVG: 50
+
+Linear algo Total Time 33.5719
+QuadAlg 2 Total Time 178.497
+/home/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/randomString_50_alpha_15_set_2.txt
+Largest: 50 Smallest: 50 AVG: 50
+
+Linear algo Total Time 38.7082
+QuadAlg 2 Total Time 189.895
+/home/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/randomString_50_alpha_20_set_2.txt
+Largest: 50 Smallest: 50 AVG: 50
+
+Linear algo Total Time 43.5737
+QuadAlg 2 Total Time 195.324
+/home/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/randomString_50_alpha_26_set_2.txt
+Largest: 50 Smallest: 50 AVG: 50
+
+Linear algo Total Time 47.9007
+QuadAlg 2 Total Time 197.92
+/home/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/randomString_75_alpha_5_set_2.txt
+Largest: 75 Smallest: 75 AVG: 75
+
+Linear algo Total Time 42.1024
+QuadAlg 2 Total Time 271.165
+/home/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/randomString_75_alpha_10_set_2.txt
+Largest: 75 Smallest: 75 AVG: 75
+
+Linear algo Total Time 44.9244
+QuadAlg 2 Total Time 326.062
+/home/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/randomString_75_alpha_15_set_2.txt
+Largest: 75 Smallest: 75 AVG: 75
+
+Linear algo Total Time 50.1383
+QuadAlg 2 Total Time 352.182
+/home/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/randomString_75_alpha_20_set_2.txt
+Largest: 75 Smallest: 75 AVG: 75
+
+Linear algo Total Time 56.0377
+QuadAlg 2 Total Time 368.314
+/home/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/randomString_75_alpha_26_set_2.txt
+Largest: 75 Smallest: 75 AVG: 75
+
+Linear algo Total Time 62.8522
+QuadAlg 2 Total Time 378.961
+/home/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/randomString_100_alpha_5_set_2.txt
+Largest: 100 Smallest: 100 AVG: 100
+
+Linear algo Total Time 54.9569
+QuadAlg 2 Total Time 413.248
+/home/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/randomString_100_alpha_10_set_2.txt
+Largest: 100 Smallest: 100 AVG: 100
+
+Linear algo Total Time 56.3052
+QuadAlg 2 Total Time 500.538
+/home/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/randomString_100_alpha_15_set_2.txt
+Largest: 100 Smallest: 100 AVG: 100
+
+Linear algo Total Time 61.8521
+QuadAlg 2 Total Time 547.417
+/home/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/randomString_100_alpha_20_set_2.txt
+Largest: 100 Smallest: 100 AVG: 100
+
+Linear algo Total Time 68.4699
+QuadAlg 2 Total Time 577.329
+/home/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/randomString_100_alpha_26_set_2.txt
+Largest: 100 Smallest: 100 AVG: 100
+
+Linear algo Total Time 76.2973
+QuadAlg 2 Total Time 600.335
+/home/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/randomString_125_alpha_5_set_2.txt
+Largest: 125 Smallest: 125 AVG: 125
+
+Linear algo Total Time 68.4021
+QuadAlg 2 Total Time 561.361
+/home/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/randomString_125_alpha_10_set_2.txt
+Largest: 125 Smallest: 125 AVG: 125
+
+Linear algo Total Time 68.3516
+QuadAlg 2 Total Time 677.491
+/home/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/randomString_125_alpha_15_set_2.txt
+Largest: 125 Smallest: 125 AVG: 125
+
+Linear algo Total Time 74.2373
+QuadAlg 2 Total Time 747.545
+/home/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/randomString_125_alpha_20_set_2.txt
+Largest: 125 Smallest: 125 AVG: 125
+
+Linear algo Total Time 80.2353
+QuadAlg 2 Total Time 793.672
+/home/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/randomString_125_alpha_26_set_2.txt
+Largest: 125 Smallest: 125 AVG: 125
+
+Linear algo Total Time 87.657
+QuadAlg 2 Total Time 833.492
+/home/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/randomString_150_alpha_5_set_2.txt
+Largest: 150 Smallest: 150 AVG: 150
+
+Linear algo Total Time 81.5501
+QuadAlg 2 Total Time 724.594
+/home/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/randomString_150_alpha_10_set_2.txt
+Largest: 150 Smallest: 150 AVG: 150
+
+Linear algo Total Time 80.147
+QuadAlg 2 Total Time 867.34
+/home/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/randomString_150_alpha_15_set_2.txt
+Largest: 150 Smallest: 150 AVG: 150
+
+Linear algo Total Time 84.4756
+QuadAlg 2 Total Time 958.852
+/home/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/randomString_150_alpha_20_set_2.txt
+Largest: 150 Smallest: 150 AVG: 150
+
+Linear algo Total Time 90.5766
+QuadAlg 2 Total Time 1029.11
+/home/joyanta/Documents/Research/Record_Linkage/codes/my_codes/ds_single_datasets/randomString_150_alpha_26_set_2.txt
+Largest: 150 Smallest: 150 AVG: 150
+
+Linear algo Total Time 97.932
+QuadAlg 2 Total Time 1078.33
