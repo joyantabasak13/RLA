@@ -1,6 +1,9 @@
 data/
 results/
 Server_results/
+PRLA_SuperBlocking/Results/
+JaroSimilarity/makefile_and_results_smallRandStrings/
+JaroSimilarity/outputs_AlphaMulSizedRandomStrings/
 
 # Prerequisites
 *.d
